@@ -1,0 +1,518 @@
+/* ===== Heebo (מוטמע לוקאלית) ===== */
+@font-face { font-family: 'Heebo'; font-weight: 400; font-display: swap; src: url('./assets/fonts/heebo-0.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-weight: 400; font-display: swap; src: url('./assets/fonts/heebo-2.woff2') format('woff2'); }
+@font-face { font-family: 'Heebo'; font-weight: 700; font-display: swap; src: url('./assets/fonts/heebo-3.woff2') format('woff2'); unicode-range: U+0590-05FF, U+200C-2010, U+20AA, U+FB1D-FB4F; }
+@font-face { font-family: 'Heebo'; font-weight: 700; font-display: swap; src: url('./assets/fonts/heebo-4.woff2') format('woff2'); }
+
+/* ===== מותג מר יפן — כתום חליפת המסקוט ===== */
+:root {
+  --bg: #fffdfa;
+  --ink: #2b2b33;
+  --muted: #8a8f9c;
+  --border: #ececec;
+  --border-soft: #f2efe9;
+  /* משפחת הכתום של מר יפן — נגזרת מגלימת הדמות (#FF925D–#f97534).
+     הראשי חם וויווידי (פחות חום) בגבול ניגודיות ~3:1 לטקסט לבן מודגש;
+     בהיר מזה טקסט ה-CTA היה נפגע. שלוש מדרגות מאותה משפחה. */
+  --brand-orange-primary: #ee6f21;  /* CTA, שלב נוכחי, פעולה פעילה (3.03:1 עם לבן) */
+  --brand-orange-deep: #d25a15;     /* hover/pressed + טקסט מודגש על בהיר */
+  --brand-orange-light: #fbe4d0;    /* פילים ורקעי סטטוס עדינים */
+  --brand-orange-subtle: #fdf2e8;   /* רקעים רכים מאוד (אזור וידוא וכד') */
+  --accent: var(--brand-orange-primary);
+  --accent-deep: var(--brand-orange-deep);
+  --accent-soft: var(--brand-orange-light);
+  --dates: #7c6ff0;
+  --done: #b0a494;            /* טאופ ניטרלי — שלבים שהושלמו */
+  --done-soft: #f1ede7;
+  --success: #3ba873;         /* ירוק — אישורי הצלחה בלבד */
+  --success-soft: #e7f4ed;
+  --shadow: 0 1px 2px rgba(43,43,51,.04), 0 8px 24px rgba(43,43,51,.06);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+/* הרקע על html בלבד — רקע אטום על body היה מוצייר מעל שכבת המרקם (z:-1) */
+html { background: var(--bg); }
+body { background: transparent; }
+body { font-family: 'Heebo', 'Assistant', 'Segoe UI', Arial, sans-serif; color: var(--ink); direction: rtl; }
+/* מרקם אסאנוהה (麻の葉) — שכבת ווטרמרק עדינה מאחורי התוכן.
+   קווים חמים-ניטרליים בשקיפות נמוכה מאוד; הכרטיסים והמודאלים הלבנים
+   נשארים נקיים לחלוטין מעליו. לא אינטראקטיבי, לא פוגע בקריאות. */
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='103.92' viewBox='0 0 60 103.92'%3E%3Cg stroke='%23b9a888' stroke-opacity='0.065' stroke-width='1' fill='none'%3E%3Cpath d='M0 0H60M0 51.96H60'/%3E%3Cpath d='M0 0L60 103.92M0 103.92L60 0'/%3E%3Cpath d='M30 17.32L0 0M30 17.32L60 0M30 17.32L30 51.96'/%3E%3Cpath d='M60 34.64L30 51.96M60 34.64L60 0M60 34.64L90 51.96M0 34.64L30 51.96M0 34.64L0 0M0 34.64L-30 51.96'/%3E%3Cpath d='M60 69.28L30 51.96M60 69.28L60 103.92M60 69.28L90 51.96M0 69.28L30 51.96M0 69.28L0 103.92M0 69.28L-30 51.96'/%3E%3Cpath d='M30 86.6L0 103.92M30 86.6L60 103.92M30 86.6L30 51.96'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 84px auto;
+  /* חלק מהמשטח נשאר נקי — המרקם מתעמעם לכיוון מרכז התוכן */
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,.35) 40%, rgba(0,0,0,.55));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,.75), rgba(0,0,0,.35) 40%, rgba(0,0,0,.55));
+}
+button { font-family: inherit; cursor: pointer; }
+
+/* ===== מבנה הדף ===== */
+.page { max-width: 920px; margin: 0 auto; padding: 18px 20px 96px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; }
+.weather { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); border-radius: 999px; padding: 7px 14px; font-size: 15px; background: #fff; }
+.kebab { border: none; background: none; font-size: 20px; color: var(--muted); }
+.trip-head { text-align: center; margin-top: 0; }
+.trip-head h1 { font-size: 27px; font-weight: 700; line-height: 1.25; }
+.trip-head .dates { color: var(--dates); font-weight: 700; font-size: 15px; margin-top: 3px; direction: ltr; }
+.trip-head .countdown { display: inline-flex; align-items: center; gap: 6px; margin-top: 7px; border: 1px solid var(--border); border-radius: 999px; padding: 4px 14px; font-size: 13px; font-weight: 600; background: #fff; }
+.mascot { display: block; width: 132px; margin: 8px auto 2px; }
+
+/* ===== כרטיס המסע ===== */
+.journey {
+  position: relative; overflow: hidden;
+  /* נייר וואשי עם וריאציה טונאלית טבעית: שנהב נקי מעט יותר מאחורי
+     מידע השלב, נמזג באורך רב (בלי גבול נראה) אל גוון הנייר של האקוורל */
+  background: linear-gradient(180deg, #fdf8ee 0%, #fbf4e7 34%, #f9efe0 62%, #f9efe0 100%);
+  border: 1px solid #ece3d3; border-radius: 18px;
+  box-shadow: var(--shadow); max-width: 640px; margin: 8px auto 0;
+  padding: 20px 22px 14px; text-align: right;
+}
+/* התוכן תמיד מעל שכבת הקישוט */
+.journey > :not(.deco) { position: relative; z-index: 1; }
+
+/* ===== מעברי תצוגה (phoneDemo) — החלקה+דהייה דו-שלבית, ~350ms =====
+   RTL: קדימה — הנוכחי יוצא ימינה, הבא נכנס משמאל. מאופק, בלי אפקטים. */
+.j-out-f { animation: jOutF .15s cubic-bezier(.4,0,.7,1) forwards; }
+.j-out-b { animation: jOutB .15s cubic-bezier(.4,0,.7,1) forwards; }
+.j-in-f { animation: jInF .21s cubic-bezier(.2,.7,.3,1); }
+.j-in-b { animation: jInB .21s cubic-bezier(.2,.7,.3,1); }
+@keyframes jOutF { to { transform: translateX(38px) scale(.99); opacity: 0; } }
+@keyframes jOutB { to { transform: translateX(-38px) scale(.99); opacity: 0; } }
+@keyframes jInF { from { transform: translateX(-38px) scale(.99); opacity: 0; } }
+@keyframes jInB { from { transform: translateX(38px) scale(.99); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .j-out-f, .j-out-b, .j-in-f, .j-in-b { animation: none; }
+}
+
+/* ===== רקע הכרטיס — נכס האקוורל המצורף; דקורטיבי בלבד ===== */
+.deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+/* התמונה: רוחב מלא (שומר את כל הקומפוזיציה — סאקורה משמאל-למעלה,
+   פוג'י מימין, פגודה משמאל-למטה), מעוגנת לתחתית; מתיחה אנכית קלה
+   שנבלעת באקוורל. החלק העליון של הכרטיס נשאר נייר שקט. */
+.deco-art {
+  position: absolute; inset: 0;
+  background-repeat: no-repeat;
+  background-size: 100% 88%;
+  background-position: center bottom;
+}
+/* רעלת קרם עדינה — קריאות בלבד: חזקה מאחורי מרכז התוכן, נמוגה בשוליים,
+   ומטשטשת את קצה התמונה העליון אל תוך משטח הכרטיס.
+   השכבה האמצעית: שקט מקומי מאחורי "השלב הבא" ופס ההתקדמות —
+   אליפסה רכה בגוון נייר הכרטיס, בלי שום קצה נראה; הפינות (פגודה/גלים)
+   כמעט לא מדוכאות כי האליפסה דוהה לפני הקצוות. */
+.deco-veil {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(to bottom, #fdf8ee 0, rgba(252,246,235,0) 24%),
+    radial-gradient(ellipse 76% 32% at 50% 76%, rgba(249,240,226,.48), rgba(249,240,226,.2) 62%, rgba(249,240,226,0) 100%),
+    radial-gradient(ellipse at 50% 30%, rgba(255,252,245,.56), rgba(255,252,245,.16) 78%);
+}
+
+/* תוכן השלב הנוכחי */
+.stage-body { display: flex; flex-direction: column; align-items: stretch; animation: sp-in .24s ease; }
+@keyframes sp-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .stage-body { animation: none; } .jp-node, .jp-line { transition: none; } }
+.sp-name { font-size: 18px; font-weight: 700; text-align: center; }
+.sp-date { font-size: 14px; font-weight: 600; text-align: center; margin-top: 5px; }
+/* רגע יפני — שלב "ביפן" בלבד; משתלב בטיפוגרפיה הקיימת */
+.sp-jp { font-size: 15.5px; font-weight: 700; text-align: center; margin-top: 6px; color: var(--accent-deep); direction: ltr; unicode-bidi: isolate; }
+/* דגל יפן קטן בכותרת (SVG — האמוג'י מוצג כ"JP" ב-Windows) */
+.sp-flag { display: inline-flex; vertical-align: -2px; margin-inline-end: 8px; }
+.sp-flag svg { width: 23px; height: 16px; display: block; }
+/* פיל סטטוס — רך, משני לכותרת, לא נראה ככפתור */
+.sp-pill { align-self: center; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; line-height: 1; border-radius: 999px; padding: 6px 14px; margin-top: 7px; }
+.sp-pill-client { background: var(--accent-soft); color: var(--accent-deep); }
+.sp-pill-team { background: var(--accent-soft); color: var(--accent-deep); }
+.sp-pill-both { background: var(--accent-soft); color: var(--accent-deep); }
+.sp-pill-none { background: #f4f3f0; color: var(--muted); }
+.sp-pill-done { background: var(--done-soft); color: #8a7d6c; }
+.sp-message { font-size: 14px; margin-top: 12px; line-height: 1.55; text-align: center; }
+.sp-detail { font-size: 12.5px; color: var(--muted); margin-top: 4px; text-align: center; }
+.sp-confirm { display: flex; justify-content: center; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 600; color: var(--success); margin-top: 9px; }
+.sp-secondary { font-size: 12px; color: var(--muted); margin-top: 9px; text-align: center; }
+/* כפתור משני — נראה לחיץ בבירור, אך משני ל-CTA הראשי */
+.sp-view {
+  align-self: center; display: inline-flex; align-items: center; gap: 6px;
+  border: 1.5px solid #d9d1c4; background: #fff; color: var(--ink);
+  font-size: 13px; font-weight: 600; border-radius: 999px; padding: 8px 20px;
+  margin-top: 12px; transition: border-color .15s, color .15s, box-shadow .15s;
+}
+.sp-view:hover { border-color: var(--accent); color: var(--accent-deep); box-shadow: 0 2px 8px rgba(238,111,33,.14); }
+/* סיכום קומפקטי אחרי שליחה — טיפוגרפיה בלבד, בלי כרטיס-בתוך-כרטיס */
+.sp-summary {
+  align-self: center; display: flex; flex-direction: column; gap: 4px;
+  margin-top: 7px; font-size: 13.5px; font-weight: 600; color: #55565f; text-align: center;
+}
+.sp-cta {
+  display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%;
+  background: var(--accent); color: #fff; border: none; border-radius: 14px;
+  font-size: 15px; font-weight: 700; padding: 13px 20px; margin-top: 16px;
+  box-shadow: 0 4px 12px rgba(238,111,33,.28);
+  transition: background .15s, box-shadow .15s, transform .08s;
+}
+.sp-cta:hover { background: var(--accent-deep); }
+/* רשימת משימות קומפקטית — קבוצה אחת, שורות לחיצות במלואן (לא כפתורים
+   כתומים כפולים). שלושה מצבים: ○ לביצוע (לחיץ, חץ) · ◷ ממתינה לצוות
+   (שקטה) · ✓ הושלם (Monday). מפריד דק; יעד מגע ≥44px לשורה פעילה. */
+.sp-tasks { margin-top: 8px; text-align: right; }
+.sp-task {
+  display: flex; align-items: center; gap: 9px; padding: 8px 2px; width: 100%;
+  background: none; border: none; font-family: inherit; text-align: right;
+  min-height: 44px; border-radius: 10px;
+}
+.sp-task + .sp-task { border-top: 1px dashed var(--border-soft); border-radius: 0 0 10px 10px; }
+.sp-task.actionable { cursor: pointer; transition: background .15s; }
+.sp-task.actionable:hover { background: rgba(238,111,33,.06); }
+.sp-task.actionable:active { background: rgba(238,111,33,.1); }
+.sp-task.waiting { opacity: .88; }
+.sp-task.done { opacity: .85; }
+.sp-task-ic { font-size: 14px; margin-inline-end: 5px; }
+.sp-task-main { flex: 1; min-width: 0; }
+.sp-task-title { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.sp-task.waiting .sp-task-title { color: #6f6a5f; }
+.sp-task.done .sp-task-title { color: var(--success); }
+.sp-task-desc { font-size: 12px; color: var(--muted); margin-top: 0; line-height: 1.4; }
+/* פיל CTA קומפקטי — affordance ויזואלי; הלחיצה היא על כל השורה */
+.sp-task-go {
+  flex: 0 0 auto; background: var(--accent); color: #fff; border-radius: 999px;
+  font-size: 12.5px; font-weight: 700; padding: 8px 14px; line-height: 1.3;
+  box-shadow: 0 2px 6px rgba(238,111,33,.22); white-space: nowrap;
+  transition: background .15s;
+}
+.sp-task.actionable:hover .sp-task-go { background: var(--accent-deep); }
+.sp-task.actionable:active .sp-task-go { background: var(--accent-deep); transform: translateY(1px); }
+/* צ'יפ סטטוס בקצה השורה — המתנה לצוות / הושלם */
+.sp-task-status { flex: 0 0 auto; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.sp-task-status.waiting { color: #8a7d6c; }
+.sp-task-status.done { color: var(--success); }
+/* כשמוצגת רשימת משימות, הודעת המצב היא שורת סטטוס קטנה ומשנית */
+.stage-body:has(.sp-tasks) .sp-message { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.sp-cta:active:not(:disabled) { background: var(--accent-deep); transform: translateY(1px); box-shadow: 0 2px 6px rgba(238,111,33,.22); }
+/* "השלב הבא" — שכבת ציפייה: תווית קטנה + שם מודגש. לא כרטיס, לא לחיץ. */
+.sp-next { margin-top: 18px; padding-top: 15px; border-top: 1px dashed var(--border-soft); text-align: center; }
+.sp-next-label { font-size: 11.5px; color: var(--muted); }
+.sp-next-name { font-size: 14px; font-weight: 600; color: #4c4d55; margin-top: 5px; }
+.sp-next-ic { font-size: 13px; margin-inline-end: 6px; }
+
+/* צפייה בהיסטוריה */
+.stage-panel-history { display: flex; flex-direction: column; align-items: center; text-align: center; background: #faf9f6; border: 1px solid var(--border-soft); border-radius: 14px; padding: 16px 18px 12px; animation: sp-in .24s ease; }
+.sp-icon-done { width: 44px; height: 44px; border-radius: 50%; background: var(--done-soft); display: flex; align-items: center; justify-content: center; font-size: 20px; margin-bottom: 8px; }
+.sp-back { border: none; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; margin-top: 12px; }
+.sp-back:hover { color: var(--ink); }
+.stage-panel-history .sp-name { font-size: 16px; }
+.stage-panel-history .sp-message { font-size: 13px; color: var(--muted); }
+
+/* ===== פס ההתקדמות ===== */
+.jwrap { margin-top: 18px; }
+.jpath { display: flex; direction: rtl; align-items: center; padding: 4px 2px 0; }
+.jp-step { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; }
+.jp-line { position: absolute; top: 50%; right: -50%; width: 100%; height: 2.5px; background: var(--border-soft); z-index: 0; transform: translateY(-50%); transition: background .28s ease; }
+.jp-line.filled { background: var(--done); opacity: .5; }
+.jp-node {
+  position: relative; z-index: 1; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10.5px; font-weight: 800; background: #fff;
+  border: 2px solid #e5e0d8; color: transparent; padding: 0; transition: all .24s ease;
+}
+/* יעד מגע מוגדל — קטן ממרווח התחנות, כדי שלא יחסום לחיצות על שכנות */
+.jp-node::after { content: ''; position: absolute; inset: -5px; border-radius: 50%; }
+.jp-node:disabled::after { display: none; } /* תחנה נעולה לא מיירטת לחיצות */
+.jp-node:not(:disabled) { cursor: pointer; pointer-events: auto; }
+.jp-node:not(:disabled):active { transform: scale(.9); }
+.jp-done .jp-node { background: var(--done); border-color: var(--done); color: #fff; }
+.jp-done .jp-node:hover:not(:disabled) { box-shadow: 0 0 0 4px var(--done-soft); }
+.jp-now .jp-node { width: 32px; height: 32px; font-size: 14px; border-color: var(--accent); background: var(--accent); color: #fff; box-shadow: 0 0 0 5px rgba(238,111,33,.18); }
+.jp-todo .jp-node:hover:not(:disabled) { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.jp-todo .jp-node:disabled { cursor: default; }
+/* שלב בתצוגה מקדימה (דמו): טבעת כתומה חלולה עם מספר —
+   נבחר אך במפורש לא "הושלם" ולא השלב בפועל */
+.jp-previewed .jp-node {
+  width: 28px; height: 28px; font-size: 12px;
+  background: #fff; border-color: var(--accent); color: var(--accent-deep);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.jp-previewed.jp-done .jp-node { background: var(--done); border-color: var(--accent); color: #fff; }
+.jp-count { text-align: center; font-size: 12.5px; color: var(--muted); margin-top: 12px; font-weight: 600; }
+.jp-sep { margin: 0 6px; }
+.jp-all { border: none; background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; padding: 0; }
+.jp-all:hover { color: var(--ink); }
+
+/* ===== ניווט קיים ===== */
+.navgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.navcard {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 17px 20px; font-size: 15.5px; font-weight: 600; color: var(--ink);
+  box-shadow: 0 1px 2px rgba(43,43,51,.03); transition: box-shadow .15s;
+}
+.navcard:hover { box-shadow: var(--shadow); }
+.navcard .ic { font-size: 22px; }
+
+/* ===== טאב-בר תחתון ===== */
+.tabbar {
+  position: fixed; bottom: 0; right: 0; left: 0; z-index: 40;
+  display: flex; justify-content: center; gap: 4px;
+  background: rgba(255,255,255,.96); border-top: 1px solid var(--border);
+  padding: 6px 10px calc(8px + env(safe-area-inset-bottom));
+  backdrop-filter: blur(8px);
+}
+.tab { flex: 0 1 96px; display: flex; flex-direction: column; align-items: center; gap: 2px; border: none; background: none; font-size: 11px; color: var(--muted); padding: 4px 0; }
+.tab .tab-ic { font-size: 18px; }
+.tab.active { color: var(--accent-deep); font-weight: 700; }
+
+/* ===== Bottom Sheet / מודאל ===== */
+.fj-overlay { position: fixed; inset: 0; background: rgba(43,43,51,.38); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.fj-sheet { position: relative; background: #fff; border-radius: 18px; width: 100%; max-width: 420px; max-height: 82vh; overflow-y: auto; padding: 20px 22px 18px; text-align: right; box-shadow: 0 24px 60px rgba(0,0,0,.22); }
+.sheet-close { position: absolute; top: 14px; left: 14px; border: none; background: none; color: var(--muted); font-size: 15px; padding: 4px; }
+.sheet-body { display: flex; flex-direction: column; }
+.sheet-title { font-size: 17px; font-weight: 700; }
+.sheet-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.sheet-line { font-size: 14px; margin-top: 10px; }
+.sheet-desc { font-size: 13.5px; color: var(--ink); margin-top: 10px; line-height: 1.55; }
+.sheet-cta { margin-top: 14px; }
+.sheet-after { font-size: 12px; color: var(--muted); margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-soft); }
+.sheet-textarea { width: 100%; margin-top: 12px; border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; font-family: inherit; font-size: 13.5px; resize: vertical; }
+.sheet-textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+/* פעולה משנית בתוך sheet — לחיצה ברורה, משנית ל-CTA */
+.sheet-secondary {
+  align-self: center; border: 1.5px solid #d9d1c4; background: #fff; color: var(--ink);
+  font-size: 13px; font-weight: 600; border-radius: 999px; padding: 8px 22px; margin-top: 12px;
+  transition: border-color .15s, color .15s;
+}
+.sheet-secondary:hover { border-color: var(--accent); color: var(--accent-deep); }
+/* רשימות בחירות (מלונות/אטרקציות) */
+.sheet-list-title { font-size: 13px; font-weight: 700; margin-top: 12px; }
+.sheet-list { margin-top: 2px; }
+.sheet-li { font-size: 13.5px; padding: 7px 0; border-bottom: 1px dashed var(--border-soft); }
+.sheet-li:last-child { border-bottom: none; }
+.en { direction: ltr; unicode-bidi: isolate; }
+/* הודעת וידוא לפני שליחה — חשיבות רגועה, לא שגיאה */
+.sheet-warn {
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--brand-orange-subtle); border-radius: 10px; padding: 11px 14px; margin-top: 14px; line-height: 1.55;
+}
+.sheet-warn b { font-size: 13px; color: var(--ink); font-weight: 700; }
+.sheet-warn span { font-size: 12.5px; color: #6f7280; }
+/* בחירה בטופס — שורות נקיות עם checkbox, בלי כרטיסים כבדים */
+.picks { display: flex; flex-direction: column; }
+.pick {
+  display: flex; align-items: center; gap: 10px; padding: 9px 4px; font-size: 13.5px;
+  border-bottom: 1px dashed var(--border-soft); cursor: pointer; transition: color .12s;
+}
+.pick:last-child { border-bottom: none; }
+.pick input { accent-color: var(--accent); width: 16px; height: 16px; flex: 0 0 auto; cursor: pointer; }
+.pick.on { color: var(--accent-deep); font-weight: 600; }
+.sp-cta:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.sp-cta:disabled:hover { background: var(--accent); }
+/* חיווי "נשלח" בצפייה לקריאה בלבד */
+.sheet-sent { font-size: 13px; font-weight: 700; color: var(--success); margin-top: 6px; }
+.sheet-note { font-size: 11.5px; color: var(--muted); margin-top: 10px; }
+.sheet-label { font-size: 13px; font-weight: 600; margin-top: 12px; }
+.sheet-quote { font-size: 13.5px; background: #faf9f6; border: 1px solid var(--border-soft); border-radius: 12px; padding: 10px 14px; margin-top: 10px; line-height: 1.6; }
+/* דירוג כוכבים */
+.stars { display: flex; justify-content: center; gap: 4px; margin-top: 10px; }
+.star { border: none; background: none; font-size: 27px; line-height: 1; color: #d9d2c6; padding: 2px; transition: transform .12s, color .12s; }
+.star.on { color: var(--accent); }
+.stars:not(.readonly) .star { cursor: pointer; }
+.stars:not(.readonly) .star:hover { transform: scale(1.15); }
+.stars.readonly .star { cursor: default; }
+
+/* המסע המלא */
+.fj-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.fj-title { font-size: 15px; font-weight: 700; }
+.fj-close { border: none; background: none; color: var(--muted); font-size: 15px; padding: 4px; }
+.fj-item { display: flex; align-items: center; gap: 11px; padding: 9px 2px; }
+.fj-item + .fj-item { border-top: 1px dashed var(--border-soft); }
+.fj-mark { flex: 0 0 22px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; }
+.fj-done .fj-mark { background: var(--done); color: #fff; }
+.fj-now .fj-mark { background: var(--accent); border: none; color: #fff; box-shadow: 0 0 0 4px rgba(238,111,33,.16); }
+.fj-todo .fj-mark { border: 2px solid #e5e0d8; color: transparent; }
+.fj-main { flex: 1; min-width: 0; }
+.fj-name-row { display: flex; align-items: center; gap: 8px; }
+.fj-cap { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.fj-cap-now { color: var(--accent-deep); font-weight: 700; }
+.fj-cap-preview { font-size: 11px; color: var(--accent-deep); font-weight: 700; margin-top: 1px; }
+.fj-previewed .fj-mark { box-shadow: 0 0 0 3px var(--accent-soft); }
+.fj-icon { font-size: 15px; }
+.fj-todo .fj-icon { opacity: .45; }
+.fj-name { font-size: 14px; font-weight: 600; }
+.fj-done .fj-name { color: var(--muted); font-weight: 500; }
+.fj-now .fj-name { font-weight: 700; }
+.fj-todo .fj-name { color: var(--muted); font-weight: 500; }
+.fj-view { border: 1px solid var(--border); background: #fff; color: var(--muted); font-size: 11px; border-radius: 999px; padding: 3px 12px; }
+
+/* ===== DEMO — לא חלק מהמוצר ===== */
+/* z-index 50: מעל הדף והטאב-בר, מתחת ל-sheets של המוצר (60) —
+   כלי הדמו לעולם לא מסתירים אינטראקציה של הלקוח */
+.demo-chip {
+  position: fixed; bottom: 74px; left: 14px; z-index: 50;
+  background: #efedea; color: #6b6f7a; border: 1px solid #ddd9d2;
+  border-radius: 999px; font-size: 12px; font-weight: 600; padding: 6px 14px;
+}
+.demo {
+  position: fixed; bottom: 74px; left: 14px; z-index: 50;
+  background: #23252b; color: #e8e8ec; border-radius: 14px; padding: 14px 16px;
+  width: 250px; font-size: 12px; direction: rtl; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.demo h4 { font-size: 10px; letter-spacing: .14em; color: #9aa0ad; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; direction: ltr; }
+.demo label { display: block; font-size: 11px; color: #9aa0ad; margin: 8px 0 3px; }
+.demo select { width: 100%; background: #31343c; color: #fff; border: 1px solid #454a55; border-radius: 8px; padding: 6px 8px; font-family: inherit; font-size: 12px; }
+.demo .row { display: flex; gap: 6px; }
+.demo .dbtn { flex: 1; background: #31343c; color: #fff; border: 1px solid #454a55; border-radius: 8px; padding: 6px 4px; font-size: 11px; white-space: nowrap; }
+.demo .dbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.demo .dbtn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.demo .dbtn:disabled { opacity: .4; cursor: default; }
+.demo .collapse-btn { background: none; border: none; color: #9aa0ad; font-size: 13px; }
+.demo-mode-row { display: flex; gap: 6px; margin-bottom: 6px; }
+.demo .demo-mobile-btn { width: 100%; margin-bottom: 8px; }
+.demo .demo-window-btn { width: 100%; margin-top: 6px; }
+.demo-hint { font-size: 10px; color: #9aa0ad; line-height: 1.5; margin-bottom: 8px; }
+.demo-status { display: flex; justify-content: space-between; background: #31343c; border-radius: 8px; padding: 7px 10px; font-size: 11px; color: #c9cdd6; }
+.demo-status b { color: #fff; }
+.demo-scenario-label { font-size: 11px; color: #c9cdd6; margin-top: 10px; }
+.demo-adv-toggle { width: 100%; background: none; border: none; border-top: 1px solid #3a3e47; color: #9aa0ad; font-size: 11px; text-align: right; padding: 8px 0 0; margin-top: 12px; }
+.demo-adv { margin-top: 2px; }
+
+/* ===== רספונסיביות ===== */
+@media (max-width: 680px) {
+  .fj-overlay { align-items: flex-end; padding: 0; }
+  /* dvh: גובה נכון גם כשמקלדת/סרגל כתובת פתוחים; vh נשאר כ-fallback */
+  .fj-sheet { max-width: none; border-radius: 18px 18px 0 0; max-height: 78vh; max-height: 82dvh; }
+  .navgrid { gap: 10px; }
+  .navcard { font-size: 14px; padding: 14px 14px; }
+  .trip-head h1 { font-size: 23px; }
+  .journey { padding: 16px 16px 12px; }
+  .demo, .demo-chip { bottom: 66px; }
+  .demo { width: 210px; }
+  /* מובייל: הקומפוזיציה המלאה — רוחב מלא, בלי עיוות, מעוגנת לתחתית.
+     כך נשמרים הסאקורה, הפגודה, הפוג'י+שמש והגלים; מעל — נייר שקט לתוכן. */
+  .deco-art { background-size: 100% auto; background-position: center bottom; opacity: .96; }
+
+  /* קיבוץ ויזואלי: "השלב הבא" + שם + פס + מטא-דאטה = קבוצת מידע אחת.
+     יותר אוויר לפני הקבוצה, פחות רווח בתוכה — הכרטיס אף מתקצר מעט. */
+  .sp-next { margin-top: 22px; padding-top: 16px; }
+  .sp-next-name { margin-top: 3px; }
+  .jwrap { margin-top: 10px; }
+  .jp-count { margin-top: 9px; }
+  /* נשימה לעיגולים: רגיל/הושלם קומפקטיים יותר — הנוכחי דומיננטי והרווחים גדלים */
+  .jpath { padding: 4px 0 0; }
+  .jp-node { width: 20px; height: 20px; font-size: 10px; }
+  .jp-now .jp-node { width: 32px; height: 32px; font-size: 14px; }
+  .jp-previewed .jp-node { width: 26px; height: 26px; font-size: 11.5px; }
+}
+
+/* ============================================================
+   iPhone Demo Frame — קוד פרזנטציה בלבד (לא UI של המוצר)
+   ============================================================ */
+html.phone-mode { background: #eceae5; }
+html.phone-mode body::before { display: none; } /* בלי ווטרמרק סביב המכשיר */
+.iphone-stage {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 26px 16px; position: relative;
+}
+.iphone-exit {
+  position: fixed; top: 16px; left: 16px; z-index: 300;
+  border: 1px solid #d8d4cc; background: #fff; color: #55565f;
+  font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 7px 16px;
+}
+.iphone-exit:hover { color: var(--accent-deep); border-color: var(--accent); }
+.iphone-device {
+  position: relative; width: 404px; padding: 7px; border-radius: 58px;
+  background: linear-gradient(160deg, #17171b, #0b0b0e 60%, #1b1b21);
+  box-shadow:
+    0 34px 80px rgba(24,22,32,.38),
+    0 8px 22px rgba(24,22,32,.24),
+    inset 0 0 2px rgba(255,255,255,.22);
+}
+/* כפתורי צד */
+.ib { position: absolute; background: #202027; border-radius: 3px; }
+.ib-action { right: -2px; top: 118px; width: 3px; height: 26px; }
+.ib-volup { right: -2px; top: 168px; width: 3px; height: 44px; }
+.ib-voldn { right: -2px; top: 222px; width: 3px; height: 44px; }
+.ib-power { left: -2px; top: 190px; width: 3px; height: 72px; }
+/* המסך: transformed ancestor — מכיל את כל ה-fixed של האפליקציה */
+.iphone-screen {
+  position: relative; width: 390px; height: 844px;
+  border-radius: 51px; overflow: hidden; background: var(--bg);
+  transform: translateZ(0);
+}
+/* ה-viewport הפנימי: גלילה עצמאית, בלי פסי גלילה */
+.iphone-content {
+  height: 100%; overflow-y: auto; overflow-x: hidden;
+  scrollbar-width: none;
+}
+.iphone-content::-webkit-scrollbar { display: none; }
+/* שכבת סטטוס + Dynamic Island — שקופה ללחיצות */
+.iphone-status {
+  position: absolute; top: 0; left: 0; right: 0; height: 52px; z-index: 200;
+  pointer-events: none; direction: ltr;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 30px;
+}
+.iphone-island {
+  position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+  width: 122px; height: 34px; border-radius: 999px; background: #0a0a0d;
+  box-shadow: inset 0 0 2px rgba(255,255,255,.08);
+}
+.ist-time { font-size: 15px; font-weight: 700; color: #2b2b33; letter-spacing: .02em; }
+.ist-icons { display: flex; align-items: center; gap: 6px; }
+/* פינוי מקום לכרום + מחוות: אנכי = גלילה, אופקי = ניווט תצוגה */
+html.phone-mode .page { padding-top: 60px; padding-bottom: 44px; touch-action: pan-y; user-select: none; }
+html.phone-mode .page img { -webkit-user-drag: none; user-drag: none; }
+html.phone-mode .fj-sheet { user-select: text; }
+/* בלי טאב-בר בהדגמה — הצ'יפ יורד לתחתית המסך */
+html.phone-mode .demo, html.phone-mode .demo-chip { bottom: 18px; }
+/* התאמה לגובה מסכים — סקייל אחיד, בלי לעוות את ה-390 הפנימי */
+@media (max-height: 980px) { .iphone-device { transform: scale(.86); } }
+@media (max-height: 830px) { .iphone-device { transform: scale(.74); } }
+@media (max-height: 700px) { .iphone-device { transform: scale(.62); } }
+@media (max-width: 460px) { .iphone-device { transform: scale(calc(100vw / 440)); } }
+
+/* ============================================================
+   תצוגת השוואת תרחישים — קנבס פרזנטציה ניטרלי (בסגנון Figma).
+   שני מכשירים חיים זה לצד זה; תוויות מחוץ למכשירים; אפס מיתוג נוסף.
+   ============================================================ */
+html.compare-mode { background: #eceae5; }
+.compare-canvas { min-height: 100vh; padding: 64px 24px 48px; }
+.compare-exit {
+  position: fixed; top: 16px; left: 16px; z-index: 300;
+  border: 1px solid #d8d4cc; background: #fff; color: #55565f;
+  font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 7px 16px;
+}
+.compare-exit:hover { color: var(--accent-deep); border-color: var(--accent); }
+/* לפי הרפרנס: תרחיש 1 משמאל, תרחיש 2 מימין — הגריד LTR, התוכן נשאר RTL */
+.compare-grid { display: flex; justify-content: center; align-items: flex-start; gap: 72px; flex-wrap: wrap; direction: ltr; }
+.compare-col { display: flex; flex-direction: column; align-items: center; gap: 16px; direction: rtl; }
+.compare-label { text-align: center; }
+.compare-label span { display: block; font-size: 13px; font-weight: 600; color: #8a8f9c; letter-spacing: .02em; }
+.compare-label b { display: block; font-size: 18px; font-weight: 700; color: #2b2b33; margin-top: 3px; }
+/* נטרול מעטפת ה"במה" של מצב הטלפון היחיד בתוך ההשוואה */
+.compare-canvas .iphone-stage { min-height: 0; padding: 0; }
+.compare-canvas .iphone-stage .iphone-exit { display: none; }
+/* סקיילינג פרופורציונלי (zoom משנה גם layout — בלי חורים); בלי עיוות פנימי */
+.compare-canvas .iphone-device { transform: none; }
+@media (max-height: 1040px) { .compare-canvas .iphone-device { zoom: .84; } }
+@media (max-height: 860px) { .compare-canvas .iphone-device { zoom: .72; } }
+@media (max-height: 720px) { .compare-canvas .iphone-device { zoom: .6; } }
+@media (max-width: 1040px) { .compare-grid { gap: 48px; } }
+
+/* ---- מראה מובייל בתוך מסך ה-iPhone: מראה של חוקי ה-680px ----
+   (המדיה-קוורי מבוסס viewport ולכן לא חל בתוך מסך 390 בדסקטופ;
+   הכפילות מכוונת — לשמור מסונכרן עם הבלוק של max-width:680px) */
+html.phone-mode .fj-overlay { align-items: flex-end; padding: 0; }
+html.phone-mode .fj-sheet { max-width: none; border-radius: 18px 18px 0 0; max-height: 78vh; max-height: 82dvh; }
+html.phone-mode .navgrid { gap: 10px; }
+html.phone-mode .navcard { font-size: 14px; padding: 14px 14px; }
+html.phone-mode .trip-head h1 { font-size: 23px; }
+html.phone-mode .journey { padding: 16px 16px 12px; }
+html.phone-mode .demo { width: 210px; }
+html.phone-mode .deco-art { background-size: 100% auto; background-position: center bottom; opacity: .96; }
+/* קיבוץ "השלב הבא"+פס — מראה של חוקי המובייל (לשמור מסונכרן עם בלוק 680) */
+html.phone-mode .sp-next { margin-top: 22px; padding-top: 16px; }
+html.phone-mode .sp-next-name { margin-top: 3px; }
+html.phone-mode .jwrap { margin-top: 10px; }
+html.phone-mode .jp-count { margin-top: 9px; }
+html.phone-mode .jpath { padding: 4px 0 0; }
+html.phone-mode .jp-node { width: 20px; height: 20px; font-size: 10px; }
+html.phone-mode .jp-now .jp-node { width: 32px; height: 32px; font-size: 14px; }
+html.phone-mode .jp-previewed .jp-node { width: 26px; height: 26px; font-size: 11.5px; }
