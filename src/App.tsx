@@ -422,6 +422,17 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         aria-label="המסע שלכם ליפן"
       >
         <CardDecor />
+        {/* שכבה 1 — התמצאות: איפה אני במסע. פס דק בראש הכרטיס. */}
+        <JourneyPath
+          stages={stages}
+          currentIndex={currentIndex}
+          previewIndex={previewActive ? previewIndex : null}
+          demoMode={demoMode}
+          onSelectNode={selectNode}
+          onOpenFull={() => setSheet('full')}
+        />
+
+        {/* שכבה 2 — מה קורה עכשיו: כרטיס אחד לשלב המוצג בלבד */}
         {historyView ? (
           <HistoricalStagePanel
             stage={dispStage}
@@ -436,15 +447,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
             onCta={(opens) => { if (opens !== 'none') setSheet(opens); }}
           />
         )}
-
-        <JourneyPath
-          stages={stages}
-          currentIndex={currentIndex}
-          previewIndex={previewActive ? previewIndex : null}
-          demoMode={demoMode}
-          onSelectNode={selectNode}
-          onOpenFull={() => setSheet('full')}
-        />
       </section>
 
       {/* ===== הניווט הקיים ===== */}

@@ -66,7 +66,7 @@ button { font-family: inherit; cursor: pointer; }
   background: linear-gradient(180deg, #fdf8ee 0%, #fbf4e7 34%, #f9efe0 62%, #f9efe0 100%);
   border: 1px solid #ece3d3; border-radius: 18px;
   box-shadow: var(--shadow); max-width: 640px; margin: 8px auto 0;
-  padding: 15px 20px 11px; text-align: right;
+  padding: 12px 20px 12px; text-align: right;
 }
 /* התוכן תמיד מעל שכבת הקישוט */
 .journey > :not(.deco) { position: relative; z-index: 1; }
@@ -113,7 +113,9 @@ button { font-family: inherit; cursor: pointer; }
 .stage-body { display: flex; flex-direction: column; align-items: stretch; animation: sp-in .24s ease; }
 @keyframes sp-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .stage-body { animation: none; } .jp-node, .jp-line { transition: none; } }
-.sp-name { font-size: 16px; font-weight: 700; text-align: center; line-height: 1.3; }
+.sp-name { font-size: 16.5px; font-weight: 700; text-align: center; line-height: 1.3; }
+/* אייקון השלב — קטן, לצד הכותרת. לא בלוק ממורכז משלו. */
+.sp-ic { font-size: 15px; margin-inline-end: 7px; vertical-align: -1px; }
 /* שורת מצב אחת מתחת לכותרת: תג פעולה · בעלות · מועד — במקום שלוש שורות */
 .sp-meta { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 6px; }
 .sp-date { font-size: 12.5px; font-weight: 600; color: #55565f; }
@@ -141,7 +143,7 @@ button { font-family: inherit; cursor: pointer; }
 .sp-detail { font-size: 12.5px; color: var(--muted); margin-top: 4px; text-align: center; }
 .sp-confirm { display: flex; justify-content: center; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--success); margin-top: 8px; }
 /* שורת עזר שקטה — מחליפה את כרטיס "השלב הבא" שהוסר. שורה אחת, בלי מסגרת. */
-.sp-after { font-size: 11.5px; color: var(--muted); margin-top: 9px; text-align: center; line-height: 1.45; }
+.sp-after { font-size: 12px; color: var(--muted); margin-top: 8px; text-align: center; line-height: 1.45; }
 /* כפתור משני — נראה לחיץ בבירור, אך משני ל-CTA הראשי */
 .sp-view {
   align-self: center; display: inline-flex; align-items: center; gap: 6px;
@@ -167,7 +169,7 @@ button { font-family: inherit; cursor: pointer; }
    שורה אחת בגובה ~46px: [אייקון] שם הפעולה ......... [CTA ←].
    כל השורה לחיצה; מפריד דק בין שורות; אין כרטיס-בתוך-כרטיס.
    שלושה מצבים: pending (CTA) · waitingForTeam (◷) · completed (✓ מ-Monday). */
-.sp-acts { margin-top: 9px; text-align: right; border-top: 1px dashed var(--divider-warm); }
+.sp-acts { margin-top: 10px; text-align: right; border-top: 1px dashed var(--divider-warm); }
 .sp-act {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 6px 4px; min-height: 46px; border-radius: 9px;
@@ -209,7 +211,8 @@ button { font-family: inherit; cursor: pointer; }
 .stage-panel-history .sp-message { font-size: 12.5px; color: var(--muted); margin-top: 7px; }
 
 /* ===== פס ההתקדמות ===== */
-.jwrap { margin-top: 13px; }
+/* שכבה 1 — התמצאות. יושבת בראש הכרטיס ומופרדת משכבת התוכן בקו דק. */
+.jwrap { margin: 0 0 9px; padding-bottom: 7px; border-bottom: 1px dashed var(--divider-warm); }
 .jpath { display: flex; direction: rtl; align-items: center; padding: 4px 2px 0; }
 .jp-step { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; }
 .jp-line { position: absolute; top: 50%; right: -50%; width: 100%; height: 2.5px; background: var(--border-soft); z-index: 0; transform: translateY(-50%); transition: background .28s ease; }
@@ -238,7 +241,7 @@ button { font-family: inherit; cursor: pointer; }
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 .jp-previewed.jp-done .jp-node { background: var(--done); border-color: var(--accent); color: #fff; }
-.jp-count { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; font-weight: 600; }
+.jp-count { text-align: center; font-size: 12px; color: var(--muted); margin-top: 7px; font-weight: 600; }
 .jp-sep { margin: 0 6px; }
 .jp-all { border: none; background: none; color: var(--muted); font-size: 12px; font-weight: 600; padding: 0; }
 .jp-all:hover { color: var(--ink); }
@@ -389,7 +392,7 @@ button { font-family: inherit; cursor: pointer; }
   .navgrid { gap: 10px; }
   .navcard { font-size: 14px; padding: 14px 14px; }
   .trip-head h1 { font-size: 23px; }
-  .journey { padding: 13px 14px 10px; }
+  .journey { padding: 10px 14px 11px; }
   .demo, .demo-chip { bottom: 66px; }
   .demo { width: 210px; }
   /* מובייל: הקומפוזיציה המלאה — רוחב מלא, בלי עיוות, מעוגנת לתחתית.
@@ -400,12 +403,11 @@ button { font-family: inherit; cursor: pointer; }
   .sp-name { font-size: 15.5px; }
   .sp-act { min-height: 48px; }
   .sp-act-title { font-size: 13px; }
-  .sp-cta { min-height: 48px; }
-  .jwrap { margin-top: 10px; }
-  .jp-count { margin-top: 9px; }
+  .jwrap { margin-bottom: 9px; padding-bottom: 7px; }
+  .jp-count { margin-top: 7px; }
   /* נשימה לעיגולים: רגיל/הושלם קומפקטיים יותר — הנוכחי דומיננטי והרווחים גדלים */
   .jpath { padding: 4px 0 0; }
-  .jp-node { width: 20px; height: 20px; font-size: 10px; }
+  .jp-node { width: 20px; height: 20px; font-size: 11px; }
   .jp-now .jp-node { width: 32px; height: 32px; font-size: 14px; }
   .jp-previewed .jp-node { width: 26px; height: 26px; font-size: 11.5px; }
 }
@@ -513,17 +515,16 @@ html.phone-mode .fj-sheet { max-width: none; border-radius: 18px 18px 0 0; max-h
 html.phone-mode .navgrid { gap: 10px; }
 html.phone-mode .navcard { font-size: 14px; padding: 14px 14px; }
 html.phone-mode .trip-head h1 { font-size: 23px; }
-html.phone-mode .journey { padding: 13px 14px 10px; }
+html.phone-mode .journey { padding: 10px 14px 11px; }
 html.phone-mode .demo { width: 210px; }
 html.phone-mode .deco-art { background-size: 100% auto; background-position: center bottom; opacity: .96; }
 /* קומפקטיות מובייל — מראה של חוקי המובייל (לשמור מסונכרן עם בלוק 680) */
 html.phone-mode .sp-name { font-size: 15.5px; }
 html.phone-mode .sp-act { min-height: 48px; }
 html.phone-mode .sp-act-title { font-size: 13px; }
-html.phone-mode .sp-cta { min-height: 48px; }
-html.phone-mode .jwrap { margin-top: 10px; }
-html.phone-mode .jp-count { margin-top: 9px; }
+html.phone-mode .jwrap { margin-bottom: 9px; padding-bottom: 7px; }
+html.phone-mode .jp-count { margin-top: 7px; }
 html.phone-mode .jpath { padding: 4px 0 0; }
-html.phone-mode .jp-node { width: 20px; height: 20px; font-size: 10px; }
+html.phone-mode .jp-node { width: 20px; height: 20px; font-size: 11px; }
 html.phone-mode .jp-now .jp-node { width: 32px; height: 32px; font-size: 14px; }
 html.phone-mode .jp-previewed .jp-node { width: 26px; height: 26px; font-size: 11.5px; }

@@ -47,12 +47,14 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
   const pending = rows.filter((r) => r.status === 'pending');
   // "נדרשת פעולה" — סטטוס, לא כפתור: רק כשהכדור אצל הלקוח ויש פעולה פתוחה
   const actionRequired = sub.ownership === 'client' && pending.length > 0;
-  // פעולה בודדת פתוחה = CTA ישיר (שם הפעולה כבר בכותרת השלב, בלי כפילות)
-  const soloCta = rows.length === 1 && rows[0].status === 'pending' ? rows[0] : null;
+  // שורת הקשר אחת בלבד בכרטיס: כשיש פעולה פתוחה, שורת "מה קורה אחרי"
+  // גוברת על משפט הפתיחה — שתיהן יחד היו שתי שורות תומכות לאותו תפקיד.
+  const showMessage = !!sub.message && !(pending.length > 0 && sub.afterNote);
   return (
     <div className="stage-body" key={`${stage.id}-${sub.id}`}>
+      {/* אייקון קטן לצד הכותרת — מידע תומך, לא בלוק אנכי משלו */}
       <div className="sp-name">
-        {sub.jpLine && (
+        {sub.jpLine ? (
           // דגל יפן כ-SVG — אמוג'י 🇯🇵 מוצג כ"JP" טקסטואלי ב-Chrome על Windows
           <span className="sp-flag" aria-hidden>
             <svg viewBox="0 0 24 17">
@@ -60,6 +62,8 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
               <circle cx="12" cy="8.5" r="4.7" fill="#d64550" />
             </svg>
           </span>
+        ) : (
+          <span className="sp-ic" aria-hidden>{stage.icon}</span>
         )}
         {stage.name}
       </div>
@@ -70,14 +74,13 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
         <span className={`sp-pill sp-pill-${sub.ownership}`}>{sub.pill ?? OWNERSHIP_PILL[sub.ownership]}</span>
         {sub.dateLine && <span className="sp-date">📅 {sub.dateLine}</span>}
       </div>
-      {sub.message && <div className="sp-message">{sub.message}</div>}
-      {soloCta ? (
-        <button className="sp-cta" onClick={() => onCta(soloCta.opens)}>{soloCta.cta} ←</button>
-      ) : rows.length > 0 ? (
+      {showMessage && <div className="sp-message">{sub.message}</div>}
+      {/* אזור הפעולות — מוצג רק כשיש פעולה אמיתית. אין CTA מומצא. */}
+      {rows.length > 0 && (
         <div className="sp-acts">
           {rows.map((r) => <ActionRowView key={r.id} row={r} onCta={onCta} />)}
         </div>
-      ) : null}
+      )}
       {sub.confirms?.map((c) => (
         <div key={c} className="sp-confirm">✓ {c}</div>
       ))}

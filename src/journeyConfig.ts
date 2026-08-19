@@ -82,11 +82,12 @@ export const PACKAGES: { id: PackageId; label: string }[] = [
 ];
 
 // בעלות כפיצ'ר מוצר: עונה תוך שנייה "מי מטפל בזה עכשיו?"
+// תווית קומפקטית — צ'יפ, לא משפט. ההרחבה חיה ב-message של תת-המצב.
 export const OWNERSHIP_PILL: Record<Ownership, string> = {
-  client: 'הכדור אצלכם',
-  team: 'צוות מר יפן מטפל בזה',
-  both: 'נפגשים עם מר יפן 🤝',
-  none: 'אין צורך לעשות דבר כרגע',
+  client: 'אתם',
+  team: 'צוות מר יפן',
+  both: 'ביחד עם צוות מר יפן',
+  none: 'אין צורך בפעולה',
 };
 
 // גרסה קצרה ושקטה — לשורות של שלבים עתידיים ב"כל שלבי המסע".
@@ -112,7 +113,7 @@ export const STAGES: Stage[] = [
         id: 'working',
         demoLabel: 'הצוות מכין',
         ownership: 'team',
-        message: 'אנחנו בונים את התוכנית שלכם.',
+        message: 'אנחנו עובדים על התוכנית שלכם. אין צורך לבצע פעולה כרגע.',
       },
     ],
   },
@@ -130,7 +131,7 @@ export const STAGES: Stage[] = [
         ownership: 'client',
         message: 'התוכנית מוכנה — ממשיכים לתשלום.',
         actions: [
-          { id: 'service-payment', icon: '💳', title: 'תשלום שירות', cta: 'לתשלום', opens: 'payment' },
+          { id: 'service-payment', icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום', opens: 'payment' },
         ],
         afterNote: 'אחרי התשלום נקבעת הפגישה עם צוות מר יפן.',
       },
@@ -157,7 +158,7 @@ export const STAGES: Stage[] = [
         ownership: 'both',
         dateLine: 'יום ג׳, 12/08 · 19:00',
         actions: [
-          { id: 'meeting', icon: '📅', title: 'פרטי הפגישה', cta: 'לפרטי הפגישה', opens: 'meeting' },
+          { id: 'meeting', icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', opens: 'meeting' },
         ],
       },
       {
@@ -183,7 +184,7 @@ export const STAGES: Stage[] = [
         message: 'עכשיו אפשר לדייק את התוכנית.',
         dateLine: 'פתוח עד 18/08',
         actions: [
-          { id: 'changes-form', icon: '✏️', title: 'טופס שינויים', cta: 'למילוי הטופס', opens: 'form' },
+          { id: 'changes-form', icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', opens: 'form' },
         ],
         afterNote: 'לאחר השליחה, צוות מר יפן ימשיך מכאן.',
       },
@@ -208,7 +209,6 @@ export const STAGES: Stage[] = [
         demoLabel: 'הצוות מעדכן',
         ownership: 'team',
         message: 'אנחנו מעדכנים את התוכנית.',
-        detail: 'אין צורך לעשות דבר כרגע.',
       },
     ],
   },
@@ -255,7 +255,7 @@ export const STAGES: Stage[] = [
         id: 'working',
         demoLabel: 'בהזמנה',
         ownership: 'team',
-        pill: 'צוות מר יפן מטפל בהזמנות',
+        pill: 'צוות מר יפן · הזמנות',
         message: 'אנחנו מטפלים בהזמנת המלונות שבחרתם.',
       },
     ],
@@ -315,7 +315,7 @@ export const STAGES: Stage[] = [
         ownership: 'client',
         message: 'נשמח לשמוע את חוות הדעת שלכם על הטיול.',
         actions: [
-          { id: 'feedback', icon: '💬', title: 'משוב על הטיול', cta: 'למילוי המשוב', opens: 'feedback' },
+          { id: 'feedback', icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', opens: 'feedback' },
         ],
       },
       {
@@ -365,7 +365,7 @@ export const SELECTIONS_MOCK = {
 // בפרוטוטייפ הוא מגיע מדגל התרחיש. כשהחלון סגור הפעולה פשוט אינה קיימת:
 // אין שורה מושבתת, אין "בקרוב", ואין מציין מקום.
 export const SELECTIONS_ACTIONS: (StageAction & { requiresPaymentWindow?: boolean })[] = [
-  { id: 'hotels', icon: '🏨', title: 'קטלוג מלונות', cta: 'לבחירת המלונות', opens: 'selections-form' },
+  { id: 'hotels', icon: '🏨', title: 'קטלוג מלונות', cta: 'לבחירה', opens: 'selections-form' },
   {
     id: 'attractions', icon: '🎟️', title: 'תשלום על אטרקציות',
     cta: 'לתשלום', opens: 'attractions-pay', requiresPaymentWindow: true,
