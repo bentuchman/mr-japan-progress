@@ -61,10 +61,10 @@ button { font-family: inherit; cursor: pointer; }
 /* ===== כרטיס המסע ===== */
 .journey {
   position: relative; overflow: hidden;
-  /* נייר וואשי עם וריאציה טונאלית טבעית: שנהב נקי מעט יותר מאחורי
-     מידע השלב, נמזג באורך רב (בלי גבול נראה) אל גוון הנייר של האקוורל */
-  background: linear-gradient(180deg, #fdf8ee 0%, #fbf4e7 34%, #f9efe0 62%, #f9efe0 100%);
-  border: 1px solid #ece3d3; border-radius: 18px;
+  /* משטח שנהב חם ואחיד — בלי גרדיאנט נראה ובלי כתם צבע.
+     כל האווירה היפנית בכרטיס היא צללית פוג'י אחת, כמעט בלתי נראית. */
+  background: #fffcf6;
+  border: 1px solid #eee6d8; border-radius: 18px;
   box-shadow: var(--shadow); max-width: 640px; margin: 8px auto 0;
   padding: 12px 20px 12px; text-align: right;
 }
@@ -85,28 +85,13 @@ button { font-family: inherit; cursor: pointer; }
   .j-out-f, .j-out-b, .j-in-f, .j-in-b { animation: none; }
 }
 
-/* ===== רקע הכרטיס — נכס האקוורל המצורף; דקורטיבי בלבד ===== */
-.deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
-/* התמונה: רוחב מלא (שומר את כל הקומפוזיציה — סאקורה משמאל-למעלה,
-   פוג'י מימין, פגודה משמאל-למטה), מעוגנת לתחתית; מתיחה אנכית קלה
-   שנבלעת באקוורל. החלק העליון של הכרטיס נשאר נייר שקט. */
-.deco-art {
-  position: absolute; inset: 0;
-  background-repeat: no-repeat;
-  background-size: 100% 88%;
-  background-position: center bottom;
-}
-/* רעלת קרם עדינה — קריאות בלבד: חזקה מאחורי מרכז התוכן, נמוגה בשוליים,
-   ומטשטשת את קצה התמונה העליון אל תוך משטח הכרטיס.
-   השכבה האמצעית: שקט מקומי מאחורי "השלב הבא" ופס ההתקדמות —
-   אליפסה רכה בגוון נייר הכרטיס, בלי שום קצה נראה; הפינות (פגודה/גלים)
-   כמעט לא מדוכאות כי האליפסה דוהה לפני הקצוות. */
-.deco-veil {
-  position: absolute; inset: 0;
-  background:
-    linear-gradient(to bottom, #fdf8ee 0, rgba(252,246,235,0) 24%),
-    radial-gradient(ellipse 76% 32% at 50% 76%, rgba(249,240,226,.48), rgba(249,240,226,.2) 62%, rgba(249,240,226,0) 100%),
-    radial-gradient(ellipse at 50% 30%, rgba(255,252,245,.56), rgba(255,252,245,.16) 78%);
+/* ===== רקע הכרטיס — רמז יפני אחד, ברמת ווטרמרק ===== */
+.deco { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; border-radius: inherit; }
+/* פוג'י: נמתחת לרוחב הכרטיס בתחתיתו, נמוכה ודהויה מאוד. הממשק שולט —
+   הרקע מתאים את עצמו אליו, לא להפך. */
+.deco-fuji {
+  position: absolute; inset-inline: -6%; bottom: 0; width: 112%; height: 40px;
+  fill: #a08a68; opacity: .055;
 }
 
 /* תוכן השלב הנוכחי */
@@ -134,9 +119,9 @@ button { font-family: inherit; cursor: pointer; }
 .sp-flag svg { width: 23px; height: 16px; display: block; }
 /* פיל סטטוס — רך, משני לכותרת, לא נראה ככפתור */
 .sp-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; line-height: 1; border-radius: 999px; padding: 5px 11px; }
-.sp-pill-client { background: var(--accent-soft); color: var(--accent-deep); }
-.sp-pill-team { background: var(--accent-soft); color: var(--accent-deep); }
-.sp-pill-both { background: var(--accent-soft); color: var(--accent-deep); }
+/* בעלות = מידע, לא פעולה. הכתום שמור לפעולות הלקוח בלבד (תג "נדרשת
+   פעולה" ופילי ה-CTA) — כך ההיררכיה הצבעונית נשארת חד-משמעית. */
+.sp-pill-client, .sp-pill-team, .sp-pill-both { background: #f3efe7; color: #6f6a5f; }
 .sp-pill-none { background: #f4f3f0; color: var(--muted); }
 .sp-pill-done { background: var(--done-soft); color: #8a7d6c; }
 .sp-message { font-size: 13px; margin-top: 8px; line-height: 1.5; text-align: center; }
@@ -160,7 +145,7 @@ button { font-family: inherit; cursor: pointer; }
 .sp-cta {
   display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%;
   background: var(--accent); color: #fff; border: none; border-radius: 12px;
-  font-size: 14.5px; font-weight: 700; padding: 11px 18px; margin-top: 11px; min-height: 46px;
+  font-size: 14.5px; font-weight: 700; padding: 11px 18px; margin-top: 10px; min-height: 46px;
   box-shadow: 0 4px 12px rgba(238,111,33,.28);
   transition: background .15s, box-shadow .15s, transform .08s;
 }
@@ -169,7 +154,7 @@ button { font-family: inherit; cursor: pointer; }
    שורה אחת בגובה ~46px: [אייקון] שם הפעולה ......... [CTA ←].
    כל השורה לחיצה; מפריד דק בין שורות; אין כרטיס-בתוך-כרטיס.
    שלושה מצבים: pending (CTA) · waitingForTeam (◷) · completed (✓ מ-Monday). */
-.sp-acts { margin-top: 10px; text-align: right; border-top: 1px dashed var(--divider-warm); }
+.sp-acts { margin-top: 6px; text-align: right; }
 .sp-act {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 6px 4px; min-height: 46px; border-radius: 9px;
@@ -179,10 +164,10 @@ button { font-family: inherit; cursor: pointer; }
 .sp-act.actionable { cursor: pointer; transition: background .15s; }
 .sp-act.actionable:hover { background: rgba(238,111,33,.06); }
 .sp-act.actionable:active { background: rgba(238,111,33,.1); }
-.sp-act.waiting, .sp-act.done { opacity: .85; }
+.sp-act.sent, .sp-act.done { opacity: .88; }
 .sp-act-ic { flex: 0 0 auto; font-size: 15px; }
 .sp-act-title { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 700; color: var(--ink); }
-.sp-act.waiting .sp-act-title { color: #6f6a5f; font-weight: 600; }
+.sp-act.sent .sp-act-title { color: #6f6a5f; font-weight: 600; }
 .sp-act.done .sp-act-title { color: #6f6a5f; font-weight: 600; }
 /* פיל ה-CTA — האלמנט החזק בשורה; הלחיצה עצמה על כל השורה */
 .sp-act-go {
@@ -195,7 +180,7 @@ button { font-family: inherit; cursor: pointer; }
 .sp-act.actionable:active .sp-act-go { background: var(--accent-deep); transform: translateY(1px); }
 /* צ'יפ סטטוס בקצה השורה — המתנה לצוות / הושלם (בלי מראה של פעולה) */
 .sp-act-state { flex: 0 0 auto; font-size: 12px; font-weight: 700; white-space: nowrap; }
-.sp-act-state.waiting { color: #8a7d6c; }
+.sp-act-state.sent { color: #7d7364; }
 .sp-act-state.done { color: var(--success); }
 .sp-cta:active:not(:disabled) { background: var(--accent-deep); transform: translateY(1px); box-shadow: 0 2px 6px rgba(238,111,33,.22); }
 /* "השלב הבא" הוסר — פס ההתקדמות מספר מה בא אחר כך; במקומו .sp-after. */
@@ -397,7 +382,7 @@ button { font-family: inherit; cursor: pointer; }
   .demo { width: 210px; }
   /* מובייל: הקומפוזיציה המלאה — רוחב מלא, בלי עיוות, מעוגנת לתחתית.
      כך נשמרים הסאקורה, הפגודה, הפוג'י+שמש והגלים; מעל — נייר שקט לתוכן. */
-  .deco-art { background-size: 100% auto; background-position: center bottom; opacity: .96; }
+  .deco-fuji { height: 34px; }
 
   /* מובייל: הכרטיס קצר יותר, אך יעדי המגע גדלים — שורת פעולה 48px. */
   .sp-name { font-size: 15.5px; }
@@ -517,7 +502,7 @@ html.phone-mode .navcard { font-size: 14px; padding: 14px 14px; }
 html.phone-mode .trip-head h1 { font-size: 23px; }
 html.phone-mode .journey { padding: 10px 14px 11px; }
 html.phone-mode .demo { width: 210px; }
-html.phone-mode .deco-art { background-size: 100% auto; background-position: center bottom; opacity: .96; }
+html.phone-mode .deco-fuji { height: 34px; }
 /* קומפקטיות מובייל — מראה של חוקי המובייל (לשמור מסונכרן עם בלוק 680) */
 html.phone-mode .sp-name { font-size: 15.5px; }
 html.phone-mode .sp-act { min-height: 48px; }

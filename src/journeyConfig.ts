@@ -41,7 +41,8 @@ export interface StageAction {
   id: string;
   icon: string;
   title: string;                // שם הפעולה — מוצג כשיש יותר מפעולה אחת
-  cta: string;                  // תווית קצרה, בשפת פעולה ("לבחירת המלונות")
+  cta: string;                  // תווית קצרה לשורת פעולה ("לבחירה")
+  ctaFull?: string;             // תווית ל-CTA ראשי (פעולה בודדת) — ברירת מחדל: cta
   opens: SheetKind;             // מה ה-CTA פותח
 }
 
@@ -59,7 +60,6 @@ export interface SubState {
   summary?: string[];           // סיכום קומפקטי אחרי שליחה (🏨 3 מלונות...)
   viewLabel?: string;           // כפתור משני לצפייה בנכס שנשלח
   viewOpens?: SheetKind;        // מה כפתור הצפייה פותח (קריאה בלבד)
-  afterNote?: string;           // שורת עזר אחת, שקטה — מה קורה אחרי הפעולה
   autoAdvance?: boolean;        // תת-מצב אישור זמני שמתגלגל לשלב הבא
   packages?: PackageId[];       // תת-מצב רלוונטי רק לחלק מהחבילות
 }
@@ -133,7 +133,6 @@ export const STAGES: Stage[] = [
         actions: [
           { id: 'service-payment', icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום', opens: 'payment' },
         ],
-        afterNote: 'אחרי התשלום נקבעת הפגישה עם צוות מר יפן.',
       },
       {
         id: 'paid',
@@ -158,7 +157,7 @@ export const STAGES: Stage[] = [
         ownership: 'both',
         dateLine: 'יום ג׳, 12/08 · 19:00',
         actions: [
-          { id: 'meeting', icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', opens: 'meeting' },
+          { id: 'meeting', icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', ctaFull: 'לפרטי הפגישה', opens: 'meeting' },
         ],
       },
       {
@@ -184,9 +183,8 @@ export const STAGES: Stage[] = [
         message: 'עכשיו אפשר לדייק את התוכנית.',
         dateLine: 'פתוח עד 18/08',
         actions: [
-          { id: 'changes-form', icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', opens: 'form' },
+          { id: 'changes-form', icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס', opens: 'form' },
         ],
-        afterNote: 'לאחר השליחה, צוות מר יפן ימשיך מכאן.',
       },
       {
         id: 'submitted',
@@ -315,7 +313,7 @@ export const STAGES: Stage[] = [
         ownership: 'client',
         message: 'נשמח לשמוע את חוות הדעת שלכם על הטיול.',
         actions: [
-          { id: 'feedback', icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', opens: 'feedback' },
+          { id: 'feedback', icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', ctaFull: 'למילוי המשוב', opens: 'feedback' },
         ],
       },
       {
@@ -365,9 +363,9 @@ export const SELECTIONS_MOCK = {
 // בפרוטוטייפ הוא מגיע מדגל התרחיש. כשהחלון סגור הפעולה פשוט אינה קיימת:
 // אין שורה מושבתת, אין "בקרוב", ואין מציין מקום.
 export const SELECTIONS_ACTIONS: (StageAction & { requiresPaymentWindow?: boolean })[] = [
-  { id: 'hotels', icon: '🏨', title: 'קטלוג מלונות', cta: 'לבחירה', opens: 'selections-form' },
+  { id: 'hotels', icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות', opens: 'selections-form' },
   {
-    id: 'attractions', icon: '🎟️', title: 'תשלום על אטרקציות',
+    id: 'attractions', icon: '🎟️', title: 'תשלום אטרקציות',
     cta: 'לתשלום', opens: 'attractions-pay', requiresPaymentWindow: true,
   },
 ];

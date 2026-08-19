@@ -179,7 +179,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         id: selectionsPending ? 'sel-open' : 'sel-waiting',
         demoLabel: 'פעולות',
         ownership: selectionsPending ? 'client' : 'team',
-        afterNote: selectionsPending ? 'לאחר השליחה, צוות מר יפן ימשיך מכאן.' : undefined,
       };
   // תתי-מצב מפורשים מה-Advanced controls ('all-ready' לבסיסי) גוברים על הסינתזה
   const selectionsView =

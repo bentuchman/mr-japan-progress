@@ -1,9 +1,9 @@
 import { ActionStatus, OWNERSHIP_PILL, SheetKind, Stage, StageAction, SubState } from '../journeyConfig';
 
 // פעולת לקוח עם המצב שלה. שלושה מצבים שאסור לבלבל ביניהם:
-//   pending        — הלקוח עוד צריך לפעול (הכדור אצלו)
-//   waitingForTeam — הלקוח סיים את חלקו; צוות מר יפן מטפל
-//   completed      — אושר ב-Monday — הושלם סופית
+//   pending        — הלקוח עוד צריך לפעול
+//   waitingForTeam — הלקוח ביצע את חלקו ("✓ נשלח"); זו אינה התקדמות במסע
+//   completed      — התהליך הפנימי עודכן, והמסע מציג את המצב החדש
 export interface ActionRow extends StageAction {
   status: ActionStatus;
 }
@@ -16,15 +16,16 @@ interface Props {
   onCta: (opens: SheetKind) => void;
 }
 
-// שורת פעולה קומפקטית — כל השורה לחיצה; ה-CTA בקצה הוא ה-affordance.
-// שורה אחת בגובה ~46px, בלי טקסט הסבר — התיאור חי בתוך ה-Sheet.
+// שורת פעולה קומפקטית — כל השורה לחיצה, ופיל ה-CTA בקצה הוא ה-affordance
+// (לא חץ בלבד). בלי תיאור מתחת לשם: "בחירת מלונות" מובן מעצמו.
 function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }) {
   const inner = (
     <>
       <span className="sp-act-ic" aria-hidden>{row.icon}</span>
       <span className="sp-act-title">{row.title}</span>
       {row.status === 'pending' && <span className="sp-act-go">{row.cta} ←</span>}
-      {row.status === 'waitingForTeam' && <span className="sp-act-state waiting">◷ ממתינים לצוות</span>}
+      {/* הלקוח סיים את חלקו — אישור קבלה, לא השלמת שלב */}
+      {row.status === 'waitingForTeam' && <span className="sp-act-state sent">✓ נשלח</span>}
       {row.status === 'completed' && <span className="sp-act-state done">✓ הושלם</span>}
     </>
   );
@@ -33,23 +34,22 @@ function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }
       {inner}
     </button>
   ) : (
-    <div className={`sp-act ${row.status === 'completed' ? 'done' : 'waiting'}`}>{inner}</div>
+    <div className={`sp-act ${row.status === 'completed' ? 'done' : 'sent'}`}>{inner}</div>
   );
 }
 
-// תוכן השלב המוצג בכרטיס הבית — היררכיה אחת בכל שלב:
-// שם ← שורת מצב (נדרשת פעולה · בעלות · מועד) ← משפט תומך אחד לכל היותר
-// ← פעולות ← אישורים ← שורת עזר שקטה. אין כרטיס "השלב הבא" — הפס מספר זאת.
+// תוכן השלב המוצג בכרטיס — היררכיה אחת בכל שלב:
+// שם השלב ← סטטוס ("נדרשת פעולה" / בעלות) ← משפט תומך אם באמת צריך ←
+// הפעולה. פעולה אחת = CTA ראשי; כמה פעולות במקביל = שורות קומפקטיות.
 export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta }: Props) {
   const rows: ActionRow[] =
     actions ?? (sub.actions ?? []).map((a) => ({ ...a, status: 'pending' as ActionStatus }));
   const summary = summaryOverride ?? sub.summary;
   const pending = rows.filter((r) => r.status === 'pending');
-  // "נדרשת פעולה" — סטטוס, לא כפתור: רק כשהכדור אצל הלקוח ויש פעולה פתוחה
+  // "נדרשת פעולה" — סטטוס שמחליף את קופי הבעלות כשהכדור אצל הלקוח
   const actionRequired = sub.ownership === 'client' && pending.length > 0;
-  // שורת הקשר אחת בלבד בכרטיס: כשיש פעולה פתוחה, שורת "מה קורה אחרי"
-  // גוברת על משפט הפתיחה — שתיהן יחד היו שתי שורות תומכות לאותו תפקיד.
-  const showMessage = !!sub.message && !(pending.length > 0 && sub.afterNote);
+  // פעולה בודדת פתוחה = CTA ראשי חזק (שם הפעולה כבר בכותרת השלב)
+  const soloCta = rows.length === 1 && rows[0].status === 'pending' ? rows[0] : null;
   return (
     <div className="stage-body" key={`${stage.id}-${sub.id}`}>
       {/* אייקון קטן לצד הכותרת — מידע תומך, לא בלוק אנכי משלו */}
@@ -68,19 +68,25 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
         {stage.name}
       </div>
       {sub.jpLine && <div className="sp-jp" lang="ja">{sub.jpLine}</div>}
-      {/* שורת מצב אחת: תג הפעולה (אם נדרשת), בעלות, ומועד — במקום שלוש שורות */}
+      {/* שורת סטטוס אחת: "נדרשת פעולה" מחליף את הבעלות כשהיא אצל הלקוח */}
       <div className="sp-meta">
-        {actionRequired && <span className="sp-badge">נדרשת פעולה</span>}
-        <span className={`sp-pill sp-pill-${sub.ownership}`}>{sub.pill ?? OWNERSHIP_PILL[sub.ownership]}</span>
-        {sub.dateLine && <span className="sp-date">📅 {sub.dateLine}</span>}
+        {actionRequired ? (
+          <span className="sp-badge">נדרשת פעולה</span>
+        ) : (
+          <span className={`sp-pill sp-pill-${sub.ownership}`}>{sub.pill ?? OWNERSHIP_PILL[sub.ownership]}</span>
+        )}
+        {/* בלי אמוג'י יומן — אייקון השלב שבכותרת כבר נושא את התפקיד הזה */}
+        {sub.dateLine && <span className="sp-date">{sub.dateLine}</span>}
       </div>
-      {showMessage && <div className="sp-message">{sub.message}</div>}
-      {/* אזור הפעולות — מוצג רק כשיש פעולה אמיתית. אין CTA מומצא. */}
-      {rows.length > 0 && (
+      {sub.message && <div className="sp-message">{sub.message}</div>}
+      {/* פעולה אחת → CTA ראשי · כמה פעולות → שורות · אין פעולה → כלום */}
+      {soloCta ? (
+        <button className="sp-cta" onClick={() => onCta(soloCta.opens)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
+      ) : rows.length > 0 ? (
         <div className="sp-acts">
           {rows.map((r) => <ActionRowView key={r.id} row={r} onCta={onCta} />)}
         </div>
-      )}
+      ) : null}
       {sub.confirms?.map((c) => (
         <div key={c} className="sp-confirm">✓ {c}</div>
       ))}
@@ -95,8 +101,6 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
           {sub.viewLabel} ←
         </button>
       )}
-      {/* שורת עזר אחת, שקטה — מה קורה אחרי הפעולה. לא כרטיס, לא כותרת. */}
-      {sub.afterNote && <div className="sp-after">{sub.afterNote}</div>}
     </div>
   );
 }

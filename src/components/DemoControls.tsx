@@ -133,8 +133,9 @@ export function DemoControls(props: Props) {
         </button>
       )}
 
-      {/* הדמיית Monday — מור מסמנת V; ההשלמה הסופית של משימת לקוח.
-          פעיל רק כשהמשימה "ממתינה לצוות" (הלקוח כבר ביצע את חלקו). */}
+      {/* סימולציית עדכון Monday — פנימי/דמו בלבד. ממחיש את השרשרת:
+          הלקוח מבצע פעולה → הלקוח רואה "✓ נשלח" → הצוות מעדכן ב-Monday →
+          מערכת ה-Progress מתעדכנת. הלקוח לעולם אינו רואה את המנגנון הזה. */}
       {props.attractionsAvailable && (
         <>
           <button
@@ -142,14 +143,14 @@ export function DemoControls(props: Props) {
             disabled={props.hotelTaskStatus !== 'waitingForTeam'}
             onClick={() => props.onMondayV('hotels')}
           >
-            {props.hotelTaskStatus === 'completed' ? '✓ Monday: מלונות אושר' : '✓ הדמיית V ב-Monday — מלונות'}
+            {props.hotelTaskStatus === 'completed' ? '✓ Monday עודכן — מלונות' : 'סימולציית עדכון Monday — מלונות'}
           </button>
           <button
             className="dbtn demo-window-btn"
             disabled={props.attractionsTaskStatus !== 'waitingForTeam'}
             onClick={() => props.onMondayV('attractions')}
           >
-            {props.attractionsTaskStatus === 'completed' ? '✓ Monday: אטרקציות אושר' : '✓ הדמיית V ב-Monday — אטרקציות'}
+            {props.attractionsTaskStatus === 'completed' ? '✓ Monday עודכן — אטרקציות' : 'סימולציית עדכון Monday — אטרקציות'}
           </button>
         </>
       )}
