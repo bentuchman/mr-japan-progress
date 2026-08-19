@@ -46,3 +46,4 @@
 
 ## הרצה
 `prototype-single.html` — דמו בקובץ יחיד · פיתוח: `npm install && npx vite`
+בנייה מחדש של הקובץ היחיד: `npm run build:single`

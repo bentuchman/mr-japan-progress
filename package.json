@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build:single": "vite build && node scripts/build-single.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
