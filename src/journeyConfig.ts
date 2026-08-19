@@ -32,6 +32,19 @@ export type SheetKind =
 // סטטוס backend / אוטומציית Monday — הסף המדויק לא נקבע כאן בכוונה.
 export type TimeToTripScenario = 'moreThanThreeMonths' | 'lessThanThreeMonths';
 
+// ===== פעולות לקוח — יחידת המידע שהמסך בנוי סביבה =====
+// כל פעולה נושאת מצב משלה. לחיצה על CTA פותחת את ה-Sheet ומעבירה
+// ל-waitingForTeam בלבד; ההשלמה (completed) מגיעה מ-Monday.
+export type ActionStatus = 'pending' | 'waitingForTeam' | 'completed';
+
+export interface StageAction {
+  id: string;
+  icon: string;
+  title: string;                // שם הפעולה — מוצג כשיש יותר מפעולה אחת
+  cta: string;                  // תווית קצרה, בשפת פעולה ("לבחירת המלונות")
+  opens: SheetKind;             // מה ה-CTA פותח
+}
+
 export interface SubState {
   id: string;
   demoLabel: string;            // ל-DEMO בלבד
@@ -41,14 +54,12 @@ export interface SubState {
   message?: string;             // בשפת לקוח — קצר
   dateLine?: string;            // שורת מועד שמוצגת בבית (📅)
   detail?: string;
-  cta?: string;                 // קיים רק כשיש פעולה אמיתית
-  ctaOpens?: SheetKind;         // מה ה-CTA פותח
+  actions?: StageAction[];      // פעולות הלקוח בשלב (0 / 1 / רבות)
   confirms?: string[];          // אישורי "התקבל ✓" (ירוק — רק כאן)
   summary?: string[];           // סיכום קומפקטי אחרי שליחה (🏨 3 מלונות...)
-  secondary?: string;           // פעולה נוספת — טקסט משני
   viewLabel?: string;           // כפתור משני לצפייה בנכס שנשלח
   viewOpens?: SheetKind;        // מה כפתור הצפייה פותח (קריאה בלבד)
-  nextLabel?: string;           // דריסת שורת "הבא:" (למשל "אחר כך: ...")
+  afterNote?: string;           // שורת עזר אחת, שקטה — מה קורה אחרי הפעולה
   autoAdvance?: boolean;        // תת-מצב אישור זמני שמתגלגל לשלב הבא
   packages?: PackageId[];       // תת-מצב רלוונטי רק לחלק מהחבילות
 }
@@ -76,6 +87,15 @@ export const OWNERSHIP_PILL: Record<Ownership, string> = {
   team: 'צוות מר יפן מטפל בזה',
   both: 'נפגשים עם מר יפן 🤝',
   none: 'אין צורך לעשות דבר כרגע',
+};
+
+// גרסה קצרה ושקטה — לשורות של שלבים עתידיים ב"כל שלבי המסע".
+// "הכדור אצלכם" בשלב עתידי היה נקרא כאילו נדרשת פעולה עכשיו.
+export const OWNERSHIP_SHORT: Record<Ownership, string> = {
+  client: 'פעולה שלכם',
+  team: 'צוות מר יפן',
+  both: 'פגישה משותפת',
+  none: '',
 };
 
 const ALL: PackageId[] = ['basic', 'standard', 'advanced'];
@@ -109,8 +129,10 @@ export const STAGES: Stage[] = [
         demoLabel: 'ממתין לתשלום',
         ownership: 'client',
         message: 'התוכנית מוכנה — ממשיכים לתשלום.',
-        cta: 'לתשלום',
-        ctaOpens: 'payment',
+        actions: [
+          { id: 'service-payment', icon: '💳', title: 'תשלום שירות', cta: 'לתשלום', opens: 'payment' },
+        ],
+        afterNote: 'אחרי התשלום נקבעת הפגישה עם צוות מר יפן.',
       },
       {
         id: 'paid',
@@ -134,8 +156,9 @@ export const STAGES: Stage[] = [
         demoLabel: 'נקבעה',
         ownership: 'both',
         dateLine: 'יום ג׳, 12/08 · 19:00',
-        cta: 'פרטי הפגישה',
-        ctaOpens: 'meeting',
+        actions: [
+          { id: 'meeting', icon: '📅', title: 'פרטי הפגישה', cta: 'לפרטי הפגישה', opens: 'meeting' },
+        ],
       },
       {
         id: 'upcoming',
@@ -159,9 +182,10 @@ export const STAGES: Stage[] = [
         ownership: 'client',
         message: 'עכשיו אפשר לדייק את התוכנית.',
         dateLine: 'פתוח עד 18/08',
-        cta: 'מילוי טופס השינויים',
-        ctaOpens: 'form',
-        nextLabel: 'צוות מר יפן מעדכן את התוכנית',
+        actions: [
+          { id: 'changes-form', icon: '✏️', title: 'טופס שינויים', cta: 'למילוי הטופס', opens: 'form' },
+        ],
+        afterNote: 'לאחר השליחה, צוות מר יפן ימשיך מכאן.',
       },
       {
         id: 'submitted',
@@ -169,7 +193,6 @@ export const STAGES: Stage[] = [
         ownership: 'none',
         confirms: ['קיבלנו את השינויים שלכם'],
         autoAdvance: true,
-        nextLabel: 'צוות מר יפן יעדכן את התוכנית',
       },
     ],
   },
@@ -190,10 +213,9 @@ export const STAGES: Stage[] = [
     ],
   },
   {
-    // שלב אדפטיבי לפי זמן-לטיול: הלקוח בוחר מלונות; עבור אטרקציות הפעולה
-    // היא תשלום בלבד (אין "בחירת אטרקציות"). כשחלון התשלום פתוח (פחות
-    // מ-3 חודשים) App מרחיב את השם ל"בחירת מלונות ותשלום אטרקציות"
-    // ובונה את תוכן השלב (משימה אחת/שתיים + השלמות) לפי התרחיש.
+    // שלב אדפטיבי לפי זמן-לטיול. הפעולות עצמן מוגדרות ב-SELECTIONS_ACTIONS
+    // (למטה) ונגזרות דרך activeSelectionActions() לפי חלון תשלום האטרקציות —
+    // אין תנאים מקודדים ב-JSX. כשהחלון פתוח App מרחיב את שם השלב.
     id: 'selections',
     name: 'בחירת מלונות',
     icon: '🏨',
@@ -202,7 +224,7 @@ export const STAGES: Stage[] = [
     historyOpens: 'selections-view',
     historyText: 'הפעולות הושלמו והועברו לטיפול.',
     subStates: [
-      // התוכן בפועל (משימה אחת/שתיים, השלמות) נגזר מהתרחיש ב-App
+      // הפעולות הפעילות והשלמתן נגזרות ב-App מ-activeSelectionActions()
       { id: 'open', demoLabel: 'פתוח לפעולות', ownership: 'client' },
       {
         id: 'done',
@@ -235,7 +257,6 @@ export const STAGES: Stage[] = [
         ownership: 'team',
         pill: 'צוות מר יפן מטפל בהזמנות',
         message: 'אנחנו מטפלים בהזמנת המלונות שבחרתם.',
-        detail: 'אין צורך לעשות דבר כרגע.',
       },
     ],
   },
@@ -251,7 +272,6 @@ export const STAGES: Stage[] = [
         demoLabel: 'בהזמנה',
         ownership: 'team',
         message: 'אנחנו מטפלים באטרקציות שבחרתם.',
-        detail: 'אין צורך לעשות דבר כרגע.',
       },
       {
         id: 'all-ready',
@@ -294,8 +314,9 @@ export const STAGES: Stage[] = [
         demoLabel: 'פתוח למילוי',
         ownership: 'client',
         message: 'נשמח לשמוע את חוות הדעת שלכם על הטיול.',
-        cta: 'למילוי משוב',
-        ctaOpens: 'feedback',
+        actions: [
+          { id: 'feedback', icon: '💬', title: 'משוב על הטיול', cta: 'למילוי המשוב', opens: 'feedback' },
+        ],
       },
       {
         id: 'submitted',
@@ -337,6 +358,26 @@ export const SELECTIONS_MOCK = {
     { city: 'Osaka', name: 'Hotel The Flag' },
   ],
 };
+
+// ===== הפעולות של השלב האדפטיבי — מקור האמת =====
+// hotels פעיל תמיד; attractions דורש שחלון תשלום האטרקציות יהיה פתוח.
+// מקור החלון הוא מצב עסקי (Monday / תאריכי הטיול), לא חישוב תאריך בפרונט —
+// בפרוטוטייפ הוא מגיע מדגל התרחיש. כשהחלון סגור הפעולה פשוט אינה קיימת:
+// אין שורה מושבתת, אין "בקרוב", ואין מציין מקום.
+export const SELECTIONS_ACTIONS: (StageAction & { requiresPaymentWindow?: boolean })[] = [
+  { id: 'hotels', icon: '🏨', title: 'קטלוג מלונות', cta: 'לבחירת המלונות', opens: 'selections-form' },
+  {
+    id: 'attractions', icon: '🎟️', title: 'תשלום על אטרקציות',
+    cta: 'לתשלום', opens: 'attractions-pay', requiresPaymentWindow: true,
+  },
+];
+
+// הפעולות הנדרשות כרגע. הרשימה נגזרת מחדש בכל רינדור — כך שפעולה
+// שנפתחת מאוחר יותר (בכניסה לחלון 3 החודשים) מחזירה את השלב למצב פעיל
+// גם אם הפעולה הראשונה כבר הושלמה.
+export function activeSelectionActions(paymentWindowOpen: boolean): StageAction[] {
+  return SELECTIONS_ACTIONS.filter((a) => !a.requiresPaymentWindow || paymentWindowOpen);
+}
 
 // תשלום אטרקציות — פעולה מסומלצת בדמו; מנגנון התשלום בפועל טרם אושר
 // והחיבור אליו יוגדר בהתאם לתהליך הקיים של מר יפן.

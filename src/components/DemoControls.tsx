@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PACKAGES, PackageId, SCENARIO, Stage, SubState, TimeToTripScenario } from '../journeyConfig';
+import { ActionStatus, PACKAGES, PackageId, SCENARIO, Stage, SubState, TimeToTripScenario } from '../journeyConfig';
 
 interface Props {
   pkg: PackageId;
@@ -15,8 +15,8 @@ interface Props {
   timeScenario: TimeToTripScenario;   // תרחיש זמן-לטיול (דמו בלבד)
   windowOpened: boolean;              // הדמיית כניסה לחלון 3 החודשים (תרחיש A)
   fixedScenario?: boolean;            // תצוגת השוואה: התרחיש מקובע למופע
-  hotelTaskStatus: 'actionRequired' | 'waitingForTeam' | 'completed';
-  attractionsTaskStatus: 'actionRequired' | 'waitingForTeam' | 'completed';
+  hotelTaskStatus: ActionStatus;
+  attractionsTaskStatus: ActionStatus;
   attractionsAvailable: boolean;
   onMondayV: (task: 'hotels' | 'attractions') => void;
   onTimeScenario: (s: TimeToTripScenario) => void;

@@ -2,6 +2,7 @@ import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState
 import mascot from './assets/mascot.png';
 import {
   ATTRACTIONS_PAYMENT,
+  ActionStatus,
   MEETING_DETAILS,
   PAYMENT_DETAILS,
   SELECTIONS_MOCK,
@@ -10,11 +11,12 @@ import {
   SheetKind,
   SubState,
   TimeToTripScenario,
+  activeSelectionActions,
   relevantStages,
   relevantSubStates,
 } from './journeyConfig';
 import { JourneyPath } from './components/JourneyPath';
-import { CurrentStagePanel } from './components/CurrentStagePanel';
+import { ActionRow, CurrentStagePanel } from './components/CurrentStagePanel';
 import { HistoricalStagePanel } from './components/HistoricalStagePanel';
 import { JourneyFullView } from './components/JourneyFullView';
 import { BottomSheet } from './components/BottomSheet';
@@ -124,12 +126,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   );
   // דמו בלבד: הדמיית כניסה לחלון 3 החודשים בתוך תרחיש A
   const [windowOpened, setWindowOpened] = useState(false);
-  // ===== מודל סטטוס משימה — שלושה מצבים, לא בוליאני =====
+  // ===== מודל סטטוס פעולה — שלושה מצבים, לא בוליאני =====
   // פעולת לקוח אינה השלמה סופית: ההשלמה נקבעת כשמור/הצוות מסמנים
-  // V ב-Monday. כל משימה עצמאית; לא מקודד בתוך currentStageId.
-  type TaskStatus = 'actionRequired' | 'waitingForTeam' | 'completed';
-  const [hotelTaskStatus, setHotelTaskStatus] = useState<TaskStatus>('actionRequired');
-  const [attractionsTaskStatus, setAttractionsTaskStatus] = useState<TaskStatus>('actionRequired');
+  // V ב-Monday. כל פעולה עצמאית; לא מקודד בתוך currentStageId.
+  const [hotelTaskStatus, setHotelTaskStatus] = useState<ActionStatus>('pending');
+  const [attractionsTaskStatus, setAttractionsTaskStatus] = useState<ActionStatus>('pending');
   const attractionsAvailable = timeScenario === 'lessThanThreeMonths' || windowOpened;
 
   // שם השלב האדפטיבי נגזר מהקונפיג + מצב חלון התשלום
@@ -151,81 +152,52 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const dispSubs = relevantSubStates(dispStage, pkg);
   const configSub = dispSubs.find((ss) => ss.id === subSel[dispStage.id]) ?? dispSubs[0];
 
-  // ===== סינתזת מצב השלב האדפטיבי (selections) לפי תרחיש הזמן =====
-  // יותר מ-3 חודשים: בחירת מלונות בלבד; תשלום האטרקציות מוזכר כעתידי.
-  // פחות מ-3 חודשים (או אחרי הדמיית החלון): שתי פעולות עצמאיות.
-  const hotelsSubmitted = hotelTaskStatus !== 'actionRequired';
-  const statuses = [hotelTaskStatus, attractionsTaskStatus];
-  const nReq = statuses.filter((s) => s === 'actionRequired').length;
-  const nWait = statuses.filter((s) => s === 'waitingForTeam').length;
-  const nDone = statuses.filter((s) => s === 'completed').length;
-  // שורת סטטוס קטנה — מסכמת אחריות: לביצוע (לקוח) / ממתינה (צוות) / הושלמה
-  const statusLine =
-    nDone === 2 ? '2 מתוך 2 הושלמו'
-    : nReq === 2 ? '2 פעולות להשלמה'
-    : nWait === 2 ? '2 ממתינות לצוות'
-    : nReq === 1 && nWait === 1 ? '1 פעולה לביצוע · 1 ממתינה לצוות'
-    : nReq === 1 && nDone === 1 ? '1 פעולה לביצוע · 1 הושלמה'
-    : '1 הושלמה · 1 ממתינה לצוות';
-  const hotelsSummary = `🏨 ${(submittedSel ?? ALL_HOTELS).length} מלונות`;
-  const futureNote = 'תשלום האטרקציות ייפתח בהמשך, לקראת הטיול.';
-  const selectionsSub: SubState = !attractionsAvailable
-    ? hotelsSubmitted
-      ? {
-          // תרחיש A נשאר כפי שאושר — שליחת המלונות ממשיכה לטיפול ההזמנות
-          id: 'done-synth', demoLabel: 'הושלם', ownership: 'none',
-          confirms: ['בחירת המלונות הושלמה'],
-          summary: [hotelsSummary],
-          viewLabel: 'צפייה בבחירות', viewOpens: 'selections-view',
-          autoAdvance: true,
-        }
-      : {
-          id: 'hotels-open', demoLabel: 'בחירת מלונות', ownership: 'client',
-          message: 'בחרו את המלונות המתאימים לכם.',
-          cta: 'לבחירת מלונות', ctaOpens: 'selections-form',
-          secondary: futureNote,
-        }
-    : nDone === 2
-      ? {
-          // שתי המשימות אושרו ב-Monday — השורות נשארות גלויות (✓✓)
-          id: 'both-done', demoLabel: 'הושלם', ownership: 'none',
-          message: '2 מתוך 2 הושלמו',
-          viewLabel: 'צפייה בבחירות', viewOpens: 'selections-view',
-          autoAdvance: true,
-        }
-      : {
-          // האחריות: כל עוד יש פעולה לביצוע — הכדור אצל הלקוח;
-          // כשהחלק של הלקוח הסתיים — צוות מר יפן מטפל.
-          id: nReq > 0 ? 'two-tasks' : 'waiting-team',
-          demoLabel: 'משימות', ownership: nReq > 0 ? 'client' : 'team',
-          message: statusLine,
-        };
-  // רשימת משימות קומפקטית — שורות לחיצות במלואן; כל משימה נושאת
-  // את שלושת המצבים בעצמה ונשארת גלויה לאורך כל הדרך.
-  const selectionTasks = attractionsAvailable
-    ? [
-        {
-          icon: '🏨', title: 'בחירת מלונות',
-          desc: 'בחרו את המלונות המתאימים לכם.',
-          ctaLabel: 'לבחירה',
-          waitingText: 'נשלח לצוות מר יפן',
-          status: hotelTaskStatus, opens: 'selections-form' as SheetKind,
-        },
-        {
-          icon: '🎟️', title: 'תשלום אטרקציות',
-          desc: 'השלימו את התשלום עבור האטרקציות.',
-          ctaLabel: 'לתשלום',
-          waitingText: 'נשלח לצוות מר יפן',
-          status: attractionsTaskStatus, opens: 'attractions-pay' as SheetKind,
-        },
-      ]
-    : undefined;
+  // ===== השלב האדפטיבי (selections) — נגזר מהקונפיג, לא מ-JSX מותנה =====
+  // activeSelectionActions מחזירה את הפעולות הנדרשות כרגע. כשחלון תשלום
+  // האטרקציות נפתח (הכניסה ל-3 חודשים), הפעולה נוספת לרשימה והשלב חוזר
+  // להיות פעיל — גם אם בחירת המלונות כבר אושרה. אין "הושלם לתמיד".
+  const selectionStatus: Record<string, ActionStatus> = {
+    hotels: hotelTaskStatus,
+    attractions: attractionsTaskStatus,
+  };
+  const selectionRows: ActionRow[] = activeSelectionActions(attractionsAvailable).map((a) => ({
+    ...a,
+    status: selectionStatus[a.id] ?? 'pending',
+  }));
+  // השלב מושלם רק כשכל הפעולות שנדרשות *כרגע* אושרו ב-Monday
+  const selectionsDone = selectionRows.every((r) => r.status === 'completed');
+  const selectionsPending = selectionRows.some((r) => r.status === 'pending');
+  const selectionsSub: SubState = selectionsDone
+    ? {
+        id: 'sel-done', demoLabel: 'הושלם', ownership: 'none',
+        confirms: [selectionRows.length > 1 ? 'הפעולות הושלמו' : 'בחירת המלונות הושלמה'],
+        viewLabel: 'צפייה בבחירות', viewOpens: 'selections-view',
+        autoAdvance: true,
+      }
+    : {
+        // האחריות: כל עוד יש פעולה פתוחה — הכדור אצל הלקוח; אחרת הצוות מטפל
+        id: selectionsPending ? 'sel-open' : 'sel-waiting',
+        demoLabel: 'פעולות',
+        ownership: selectionsPending ? 'client' : 'team',
+        afterNote: selectionsPending ? 'לאחר השליחה, צוות מר יפן ימשיך מכאן.' : undefined,
+      };
   // תתי-מצב מפורשים מה-Advanced controls ('all-ready' לבסיסי) גוברים על הסינתזה
   const selectionsView =
     dispStage.id === 'selections' && !['all-ready'].includes(subSel['selections'] ?? '');
   const dispSub = selectionsView ? selectionsSub : configSub;
-  const dispTasks = selectionsView ? selectionTasks : undefined;
+  const dispActions = selectionsView ? selectionRows : undefined;
   const dispNext = dispIndex < stages.length - 1 ? stages[dispIndex + 1] : null;
+
+  // האם בשלב מסוים יש פעולה פתוחה של הלקוח — נגזר מהקונפיג בלבד.
+  // משמש את "כל שלבי המסע" כדי לסמן את השלב הנוכחי כדורש פעולה.
+  function stageNeedsAction(stageId: string): boolean {
+    if (stageId === 'selections') return selectionsPending;
+    const st = stages.find((x) => x.id === stageId);
+    if (!st) return false;
+    const subs = relevantSubStates(st, pkg);
+    const ss = subs.find((x) => x.id === subSel[stageId]) ?? subs[0];
+    return ss.ownership === 'client' && !!ss.actions?.length;
+  }
 
   // מצב לקוח: שלב שהושלם נצפה כהיסטוריה לקריאה בלבד.
   // מצב דמו: כל שלב מוצג "חי" — כאילו הלקוח פתח את האפליקציה באותו רגע.
@@ -395,8 +367,8 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   function handleTimeScenario(s: TimeToTripScenario) {
     setTimeScenario(s);
     setWindowOpened(false);
-    setHotelTaskStatus('actionRequired');
-    setAttractionsTaskStatus('actionRequired');
+    setHotelTaskStatus('pending');
+    setAttractionsTaskStatus('pending');
     setSubmittedSel(null);
     setChosen([]);
     setSheet('none');
@@ -460,9 +432,8 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
           <CurrentStagePanel
             stage={dispStage}
             sub={dispSub}
-            nextStage={dispNext}
-            tasks={dispTasks}
-            onCta={(opens) => { if (opens && opens !== 'none') setSheet(opens); }}
+            actions={dispActions}
+            onCta={(opens) => { if (opens !== 'none') setSheet(opens); }}
           />
         )}
 
@@ -648,6 +619,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
           currentIndex={currentIndex}
           previewIndex={previewActive ? previewIndex : null}
           demoMode={demoMode}
+          actionRequired={stageNeedsAction(currentStageId)}
           onClose={() => setSheet('none')}
           onSelectStage={(i) => selectNode(i)}
         />

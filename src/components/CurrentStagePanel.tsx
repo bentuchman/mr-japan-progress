@@ -1,38 +1,54 @@
-import { OWNERSHIP_PILL, SheetKind, Stage, SubState } from '../journeyConfig';
+import { ActionStatus, OWNERSHIP_PILL, SheetKind, Stage, StageAction, SubState } from '../journeyConfig';
 
-// משימה בתוך מצב-לקוח אחד (למשל: בחירת מלונות + תשלום אטרקציות).
-// שלושה מצבים שאסור לבלבל ביניהם:
-//   actionRequired — הלקוח עוד צריך לפעול (הכדור אצלו)
+// פעולת לקוח עם המצב שלה. שלושה מצבים שאסור לבלבל ביניהם:
+//   pending        — הלקוח עוד צריך לפעול (הכדור אצלו)
 //   waitingForTeam — הלקוח סיים את חלקו; צוות מר יפן מטפל
-//   completed      — מור אישרה V ב-Monday — הושלם סופית
-export type TaskRowStatus = 'actionRequired' | 'waitingForTeam' | 'completed';
-export interface TaskRow {
-  icon: string;
-  title: string;
-  desc: string;
-  ctaLabel: string;     // תווית קצרה לפיל הפעולה ("לבחירה"/"לתשלום")
-  waitingText: string;  // שורת המשנה במצב המתנה ("נשלח לצוות מר יפן")
-  status: TaskRowStatus;
-  opens: SheetKind;
+//   completed      — אושר ב-Monday — הושלם סופית
+export interface ActionRow extends StageAction {
+  status: ActionStatus;
 }
 
 interface Props {
   stage: Stage;
   sub: SubState;
-  nextStage: Stage | null;
+  actions?: ActionRow[];        // פעולות עם מצב חי (גוברות על sub.actions)
   summaryOverride?: string[];   // סיכום דינמי (למשל ספירת הבחירות שנשלחו בפועל)
-  tasks?: TaskRow[];            // שתי משימות עצמאיות במקום CTA יחיד
-  onCta: (opens: SubState['ctaOpens']) => void;
+  onCta: (opens: SheetKind) => void;
 }
 
-// תוכן השלב המוצג בכרטיס הבית — היררכיה אחידה בכל שלב:
-// שם ← בעלות ← מה קורה ← פעולה (אם יש) ← אישורים ← השלב הבא.
-export function CurrentStagePanel({ stage, sub, nextStage, summaryOverride, tasks, onCta }: Props) {
-  const pill = sub.pill ?? OWNERSHIP_PILL[sub.ownership];
+// שורת פעולה קומפקטית — כל השורה לחיצה; ה-CTA בקצה הוא ה-affordance.
+// שורה אחת בגובה ~46px, בלי טקסט הסבר — התיאור חי בתוך ה-Sheet.
+function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }) {
+  const inner = (
+    <>
+      <span className="sp-act-ic" aria-hidden>{row.icon}</span>
+      <span className="sp-act-title">{row.title}</span>
+      {row.status === 'pending' && <span className="sp-act-go">{row.cta} ←</span>}
+      {row.status === 'waitingForTeam' && <span className="sp-act-state waiting">◷ ממתינים לצוות</span>}
+      {row.status === 'completed' && <span className="sp-act-state done">✓ הושלם</span>}
+    </>
+  );
+  return row.status === 'pending' ? (
+    <button className="sp-act actionable" onClick={() => onCta(row.opens)} aria-label={`${row.title} — ${row.cta}`}>
+      {inner}
+    </button>
+  ) : (
+    <div className={`sp-act ${row.status === 'completed' ? 'done' : 'waiting'}`}>{inner}</div>
+  );
+}
+
+// תוכן השלב המוצג בכרטיס הבית — היררכיה אחת בכל שלב:
+// שם ← שורת מצב (נדרשת פעולה · בעלות · מועד) ← משפט תומך אחד לכל היותר
+// ← פעולות ← אישורים ← שורת עזר שקטה. אין כרטיס "השלב הבא" — הפס מספר זאת.
+export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta }: Props) {
+  const rows: ActionRow[] =
+    actions ?? (sub.actions ?? []).map((a) => ({ ...a, status: 'pending' as ActionStatus }));
   const summary = summaryOverride ?? sub.summary;
-  // "השלב הבא" — שכבת ציפייה: תווית קטנה + שם מודגש (לא לחיץ, לא כרטיס)
-  const nextName = sub.nextLabel ?? nextStage?.name ?? null;
-  const nextIcon = sub.nextLabel ? null : nextStage?.icon ?? null;
+  const pending = rows.filter((r) => r.status === 'pending');
+  // "נדרשת פעולה" — סטטוס, לא כפתור: רק כשהכדור אצל הלקוח ויש פעולה פתוחה
+  const actionRequired = sub.ownership === 'client' && pending.length > 0;
+  // פעולה בודדת פתוחה = CTA ישיר (שם הפעולה כבר בכותרת השלב, בלי כפילות)
+  const soloCta = rows.length === 1 && rows[0].status === 'pending' ? rows[0] : null;
   return (
     <div className="stage-body" key={`${stage.id}-${sub.id}`}>
       <div className="sp-name">
@@ -48,49 +64,20 @@ export function CurrentStagePanel({ stage, sub, nextStage, summaryOverride, task
         {stage.name}
       </div>
       {sub.jpLine && <div className="sp-jp" lang="ja">{sub.jpLine}</div>}
-      {sub.dateLine && <div className="sp-date">📅 {sub.dateLine}</div>}
-      <span className={`sp-pill sp-pill-${sub.ownership}`}>{pill}</span>
+      {/* שורת מצב אחת: תג הפעולה (אם נדרשת), בעלות, ומועד — במקום שלוש שורות */}
+      <div className="sp-meta">
+        {actionRequired && <span className="sp-badge">נדרשת פעולה</span>}
+        <span className={`sp-pill sp-pill-${sub.ownership}`}>{sub.pill ?? OWNERSHIP_PILL[sub.ownership]}</span>
+        {sub.dateLine && <span className="sp-date">📅 {sub.dateLine}</span>}
+      </div>
       {sub.message && <div className="sp-message">{sub.message}</div>}
-      {/* שורות משימות — שתי פעולות של אותו מצב, כל אחת עם השלמה משלה.
-          ✓ + שינוי טקסט (לא צבע בלבד) מסמנים השלמה. */}
-      {/* קבוצת משימות קומפקטית: פעולה נדרשת = כל השורה לחיצה + פיל CTA
-          קומפקטי כ-affordance ויזואלי (לא כפתור מקונן); המתנה/הושלם =
-          צ'יפ סטטוס בקצה השורה, בלי מראה של פעולה. אין עיגולי רדיו. */}
-      {tasks && (
-        <div className="sp-tasks">
-          {tasks.map((t) => {
-            const cls = t.status === 'completed' ? ' done' : t.status === 'waitingForTeam' ? ' waiting' : '';
-            const inner = (
-              <>
-                <div className="sp-task-main">
-                  <div className="sp-task-title">
-                    <span className="sp-task-ic" aria-hidden>{t.icon}</span>
-                    {t.title}
-                  </div>
-                  {t.status === 'actionRequired' && <div className="sp-task-desc">{t.desc}</div>}
-                  {t.status === 'waitingForTeam' && <div className="sp-task-desc">{t.waitingText}</div>}
-                </div>
-                {t.status === 'actionRequired' && (
-                  <span className="sp-task-go">{t.ctaLabel} ←</span>
-                )}
-                {t.status === 'waitingForTeam' && (
-                  <span className="sp-task-status waiting">◷ ממתינים לצוות</span>
-                )}
-                {t.status === 'completed' && (
-                  <span className="sp-task-status done">✓ הושלם</span>
-                )}
-              </>
-            );
-            return t.status === 'actionRequired' ? (
-              <button key={t.title} className="sp-task actionable" onClick={() => onCta(t.opens)}>
-                {inner}
-              </button>
-            ) : (
-              <div key={t.title} className={`sp-task${cls}`}>{inner}</div>
-            );
-          })}
+      {soloCta ? (
+        <button className="sp-cta" onClick={() => onCta(soloCta.opens)}>{soloCta.cta} ←</button>
+      ) : rows.length > 0 ? (
+        <div className="sp-acts">
+          {rows.map((r) => <ActionRowView key={r.id} row={r} onCta={onCta} />)}
         </div>
-      )}
+      ) : null}
       {sub.confirms?.map((c) => (
         <div key={c} className="sp-confirm">✓ {c}</div>
       ))}
@@ -100,24 +87,13 @@ export function CurrentStagePanel({ stage, sub, nextStage, summaryOverride, task
         </div>
       )}
       {sub.detail && <div className="sp-detail">{sub.detail}</div>}
-      {sub.cta && (
-        <button className="sp-cta" onClick={() => onCta(sub.ctaOpens)}>{sub.cta} ←</button>
-      )}
-      {sub.secondary && <div className="sp-secondary">{sub.secondary}</div>}
       {sub.viewLabel && (
         <button className="sp-view" onClick={() => sub.viewOpens && onCta(sub.viewOpens)}>
           {sub.viewLabel} ←
         </button>
       )}
-      {nextName && (
-        <div className="sp-next">
-          <div className="sp-next-label">השלב הבא</div>
-          <div className="sp-next-name">
-            {nextIcon && <span className="sp-next-ic" aria-hidden>{nextIcon}</span>}
-            {nextName}
-          </div>
-        </div>
-      )}
+      {/* שורת עזר אחת, שקטה — מה קורה אחרי הפעולה. לא כרטיס, לא כותרת. */}
+      {sub.afterNote && <div className="sp-after">{sub.afterNote}</div>}
     </div>
   );
 }
