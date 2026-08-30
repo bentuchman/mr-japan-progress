@@ -1,6 +1,7 @@
 import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import mascot from './assets/mascot.png';
 import {
+  ActionProvider,
   ActionStatus,
   PackageId,
   SCENARIO,
@@ -64,7 +65,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // פעולה שנפתחת מוטמעת בתוך האפליקציה (כתובת אטומה מהקונפיג).
   // מצב תצוגה בלבד — אינו נוגע ב-currentStage/previewStage ובהתקדמות.
   const [embedded, setEmbedded] = useState<
-    { id: string; title: string; url: string; filloutFormId?: string } | null
+    { id: string; title: string; url: string; provider: ActionProvider; filloutFormId?: string } | null
   >(null);
   // DEV — פעולה שאי אפשר לפתוח כרגע. שתי סיבות שונות, והמסך אומר איזו:
   //   awaitingVerification — יש כתובת, אבל טרם אומת מה היא עושה
@@ -167,7 +168,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
       if (action.provider === 'fillout' || action.provider === 'zite') {
         setEmbedded({
           id: action.id, title: action.title, url: action.url,
-          filloutFormId: action.filloutFormId,
+          provider: action.provider, filloutFormId: action.filloutFormId,
         });
         return;
       }
@@ -477,6 +478,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         <EmbeddedActionSheet
           title={embedded.title}
           url={embedded.url}
+          provider={embedded.provider}
           filloutFormId={embedded.filloutFormId}
           onClose={() => setEmbedded(null)}
           onSubmitted={() => {

@@ -1,20 +1,15 @@
 import { FilloutRenderer } from './FilloutRenderer';
 
-// בוחר renderer לפי היעד של הפעולה. כל כתובת שמתארחת על fillout.com
-// (כולל דומיין מותאם כמו mrjapan.fillout.com) מקבלת את ה-renderer של
-// הספק — ורק אותו. אין נפילה ל-iframe גנרי על כתובת Fillout: כתובת
-// השיתוף ללקוח אינה יעד הטמעה. ה-iframe הגנרי נשאר לספקים אחרים.
-export function isFilloutUrl(url: string): boolean {
-  try {
-    return /(^|\.)fillout\.com$/.test(new URL(url).hostname);
-  } catch {
-    return false;
-  }
-}
+// בוחר renderer לפי ספק התוכן של הפעולה — ולא לפי המארח שבכתובת.
+// action.provider הוא ההחלטה היחידה: 'fillout' → ה-renderer הרשמי,
+// כל השאר → הטמעת web גנרית. כתובת השיתוף ללקוח אינה יעד הטמעה, ולכן
+// טופס Fillout לעולם אינו נופל ל-iframe הגנרי.
+import { ActionProvider } from '../journeyConfig';
 
 interface Props {
   url: string;
   title: string;
+  provider?: ActionProvider;
   filloutFormId?: string;
   onReady: () => void;
   onFrameLoad?: () => void;
@@ -22,8 +17,8 @@ interface Props {
   webFrameRef: React.Ref<HTMLIFrameElement>;
 }
 
-export function ActionContentRenderer({ url, title, filloutFormId, onReady, onFrameLoad, onSubmitted, webFrameRef }: Props) {
-  if (isFilloutUrl(url)) {
+export function ActionContentRenderer({ url, title, provider, filloutFormId, onReady, onFrameLoad, onSubmitted, webFrameRef }: Props) {
+  if (provider === 'fillout') {
     // חסר מזהה טופס = תקלת קונפיג. הגיליון מציג מצב שגיאה קיים
     // (EmbeddedActionSheet) — לא iframe אל כתובת השיתוף.
     if (!filloutFormId) return null;
@@ -37,7 +32,7 @@ export function ActionContentRenderer({ url, title, filloutFormId, onReady, onFr
       />
     );
   }
-  // WebRenderer — תוכן חיצוני שאינו Fillout
+  // WebRenderer — כל ספק שאינו Fillout (היום: Zite)
   return (
     <iframe
       ref={webFrameRef}

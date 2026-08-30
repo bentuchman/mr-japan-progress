@@ -79,9 +79,6 @@ export function DemoControls(props: Props) {
           >
             📱 השוואת תרחישים
           </button>
-          <button className="dbtn demo-mobile-btn" onClick={props.onDiagnostics}>
-            🔎 בדיקת הקישורים האמיתיים
-          </button>
         </>
       )}
 
@@ -179,6 +176,11 @@ export function DemoControls(props: Props) {
 
       {advanced && (
         <div className="demo-adv">
+          {/* כלי אבחון — מחוץ לזרימת ההדגמה, לא חלק מהמוצר */}
+          <button className="dbtn demo-mobile-btn" onClick={props.onDiagnostics}>
+            🔎 בדיקת הקישורים האמיתיים
+          </button>
+
           <label>חבילת לקוח</label>
           <div className="row" style={{ marginTop: 0 }}>
             {PACKAGES.map((p) => (

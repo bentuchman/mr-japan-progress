@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActionContentRenderer, isFilloutUrl } from './ActionContentRenderer';
+import { ActionContentRenderer } from './ActionContentRenderer';
+import { ActionProvider } from '../journeyConfig';
 
 // גיליון פעולה מוטמע — הדפוס הכללי של "פעולת לקוח נפתחת בתוך מר יפן".
 // הרכיב אינו יודע איזה תוכן הוא מציג: כותרת + כתובת אטומה, וזהו.
 interface Props {
   title: string;
   url: string;
+  provider?: ActionProvider;   // קובע איזה renderer ירוץ
   filloutFormId?: string;     // נדרש טכנית ל-renderer של Fillout
   onClose: () => void;
   onSubmitted?: () => void;   // אופציונלי: התוכן המוטמע דיווח על שליחה
@@ -50,9 +52,9 @@ export function embedVerdict(reach: boolean | null, frame: HTMLIFrameElement | n
   return frameShowsRemoteContent(frame) ? 'loaded' : 'error';
 }
 
-export function EmbeddedActionSheet({ title, url, filloutFormId, onClose, onSubmitted }: Props) {
-  const isFillout = isFilloutUrl(url);
-  // כתובת Fillout בלי מזהה טופס — תקלת קונפיג, לא ניסיון הטמעה ישירה
+export function EmbeddedActionSheet({ title, url, provider, filloutFormId, onClose, onSubmitted }: Props) {
+  const isFillout = provider === 'fillout';
+  // ספק Fillout בלי מזהה טופס — תקלת קונפיג, לא ניסיון הטמעה ישירה
   const filloutUnconfigured = isFillout && !filloutFormId;
   const [reach, setReach] = useState<boolean | null>(null);
   const [ready, setReady] = useState(false);
@@ -111,6 +113,7 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, onClose, onSubm
             <ActionContentRenderer
               url={url}
               title={title}
+              provider={provider}
               filloutFormId={filloutFormId}
               onReady={onReady}
               onFrameLoad={onFrameLoad}
