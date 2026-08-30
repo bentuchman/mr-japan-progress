@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { FilloutStandardEmbed } from '@fillout/react';
 
 // ===== FilloutRenderer — הטמעה רשמית של טופס Fillout =====
@@ -18,7 +18,10 @@ interface Props {
   // שהוא הנתיב הנתמך והסביר ביותר להצגה בתוך frame. מגדירים אותו רק
   // אם הטופס נשען על יכולות שקיימות רק בדומיין העצמי (למשל custom JS).
   domain?: string;
-  onReady: () => void;    // onInit של הספק — סימן חיים אמיתי, לא טיימר
+  onReady: () => void;      // onInit של הספק — אישור מלא
+  // ה-iframe שהספק הזריק סיים להיטען. אות חלש יותר מ-onInit, אבל מספיק
+  // כדי להפסיק להסתיר את התוכן: אחרת מסך טעינה אטום מכסה טופס תקין.
+  onFrameLoad?: () => void;
   onSubmitted?: () => void;
 }
 
@@ -33,11 +36,28 @@ function paramsOf(url: string): Record<string, string> {
   return out;
 }
 
-export function FilloutRenderer({ formId, url, domain, onReady, onSubmitted }: Props) {
+export function FilloutRenderer({ formId, url, domain, onReady, onFrameLoad, onSubmitted }: Props) {
   // יציב בין רינדורים — אחרת ההטמעה הייתה מאותחלת מחדש בכל render
   const parameters = useMemo(() => paramsOf(url), [url]);
+  const host = useRef<HTMLDivElement>(null);
+
+  // הספק מזריק iframe משלו; מאזינים ל-load שלו כדי לדעת שיש תוכן
+  useEffect(() => {
+    const node = host.current;
+    if (!node || !onFrameLoad) return;
+    let frame: HTMLIFrameElement | null = null;
+    const attach = () => {
+      const f = node.querySelector('iframe');
+      if (f && f !== frame) { frame = f; f.addEventListener('load', onFrameLoad); }
+    };
+    attach();
+    const obs = new MutationObserver(attach);
+    obs.observe(node, { childList: true, subtree: true });
+    return () => { obs.disconnect(); frame?.removeEventListener('load', onFrameLoad); };
+  }, [onFrameLoad]);
+
   return (
-    <div className="fo-host">
+    <div className="fo-host" ref={host}>
       <FilloutStandardEmbed
         filloutId={formId}
         domain={domain}

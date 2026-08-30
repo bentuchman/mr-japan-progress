@@ -17,11 +17,12 @@ interface Props {
   filloutFormId?: string;
   filloutDomain?: string;
   onReady: () => void;
+  onFrameLoad?: () => void;
   onSubmitted?: () => void;
   webFrameRef: React.Ref<HTMLIFrameElement>;
 }
 
-export function ActionContentRenderer({ url, title, filloutFormId, filloutDomain, onReady, onSubmitted, webFrameRef }: Props) {
+export function ActionContentRenderer({ url, title, filloutFormId, filloutDomain, onReady, onFrameLoad, onSubmitted, webFrameRef }: Props) {
   if (isFilloutUrl(url) && filloutFormId) {
     return (
       <FilloutRenderer
@@ -29,6 +30,7 @@ export function ActionContentRenderer({ url, title, filloutFormId, filloutDomain
         url={url}
         domain={filloutDomain}
         onReady={onReady}
+        onFrameLoad={onFrameLoad}
         onSubmitted={onSubmitted}
       />
     );

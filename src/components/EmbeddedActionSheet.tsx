@@ -55,6 +55,9 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, filloutDomain, 
   const isFillout = isFilloutUrl(url) && !!filloutFormId;
   const [reach, setReach] = useState<boolean | null>(null);
   const [ready, setReady] = useState(false);
+  // ה-iframe של ההטמעה נטען. גם אם onInit לא נורה — אסור להשאיר מסך
+  // טעינה אטום מעל טופס שכבר מוצג. זה היה באג: הכיסוי הסתיר תוכן תקין.
+  const [frameSeen, setFrameSeen] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
 
@@ -66,7 +69,7 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, filloutDomain, 
   // הטעינה — הצעה, לא הכרזת כישלון.
   // תוכן גנרי אחר: כמו קודם — נגישות + בדיקת ה-frame.
   const state: EmbedState = isFillout
-    ? ready ? 'loaded' : 'loading'
+    ? ready || frameSeen ? 'loaded' : 'loading'
     : embedVerdict(reach, frame.current, ready || timedOut);
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, filloutDomain, 
     return () => window.clearTimeout(t);
   }, [isFillout]);
   const onReady = useCallback(() => { setReady(true); }, []);
+  const onFrameLoad = useCallback(() => { setFrameSeen(true); }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -98,13 +102,16 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, filloutDomain, 
 
         <div className="eas-body">
           {/* בחירת ה-renderer לפי סוג התוכן — Fillout מקבל טיפול ייעודי */}
-          <div className={`eas-content${state === 'loaded' ? ' on' : ''}`}>
+          {/* התוכן תמיד מוצג. מסך הטעינה יושב מעליו ונעלם ברגע שיש תוכן —
+              כך טופס תקין לעולם אינו מוסתר מאחורי "טוען…". */}
+          <div className="eas-content">
             <ActionContentRenderer
               url={url}
               title={title}
               filloutFormId={filloutFormId}
               filloutDomain={filloutDomain}
               onReady={onReady}
+              onFrameLoad={onFrameLoad}
               onSubmitted={onSubmitted}
               webFrameRef={frame}
             />

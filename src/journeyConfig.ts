@@ -384,6 +384,49 @@ export const AUTOMATION_WEBHOOKS = {
 } as const;
 
 // ============================================================
+// DEV_LINK_INVENTORY — מלאי טכני לבדיקות בלבד.
+// לא מחובר לשום שלב במסע. journeyAction נקבע רק אחרי אימות עסקי;
+// מזהה טופס אינו ראיה לתפקיד. הכתובות נשמרות שלמות ואטומות, ואינן
+// מוצגות בשום ממשק — גם לא ב-DEV (מוצג host+path בלבד).
+// ============================================================
+export type LinkProvider = 'fillout' | 'zite' | 'make';
+
+export interface DevLink {
+  id: string;
+  provider: LinkProvider;
+  url: string;
+  filloutId?: string;
+  journeyAction: string | 'unknown';
+  customerFacing: boolean | 'unknown';
+}
+
+export const DEV_LINK_INVENTORY: DevLink[] = [
+  {
+    id: 'hotelFillout', provider: 'fillout', filloutId: 'ohzZe7sCBrus',
+    url: DEMO_ACTION_LINKS.hotelSelection,
+    journeyAction: 'hotels', customerFacing: true,
+  },
+  {
+    id: 'filloutC', provider: 'fillout', filloutId: 'tuqZnYRAxeus',
+    url: 'https://mrjapan.fillout.com/t/tuqZnYRAxeus?mondayId=11395841792&clientName=%D7%AA%D7%9E%D7%A8%20%D7%98%D7%9C%20%D7%A7%D7%A8%D7%A1%D7%95%20%20(%D7%9E%D7%A9%D7%A4%D7%97%D7%AA%20%D7%A7%D7%A8%D7%A1%D7%95)&email=tamartal@gmail.com',
+    journeyAction: 'unknown', customerFacing: true,
+  },
+  {
+    id: 'filloutD', provider: 'fillout', filloutId: 'vYY9mWeMQsus',
+    url: UNASSIGNED_LINKS.filloutUnknown,
+    journeyAction: 'unknown', customerFacing: true,
+  },
+  {
+    id: 'ziteA', provider: 'zite', url: UNASSIGNED_LINKS.zitePage,
+    journeyAction: 'unknown', customerFacing: 'unknown',
+  },
+  {
+    id: 'makeB', provider: 'make', url: AUTOMATION_WEBHOOKS.makeB,
+    journeyAction: 'unknown', customerFacing: false,
+  },
+];
+
+// ============================================================
 // JOURNEY_ACTIONS — הרישום המרכזי של פעולות הלקוח במסע.
 // מקור אמת אחד: שלב → 0 / 1 / כמה פעולות, ולכל פעולה יעד משלה.
 // אין לוגיקת פעולה מפוזרת בקומפוננטות ואין יעדים מקודדים ב-JSX.
