@@ -383,6 +383,17 @@ export const AUTOMATION_WEBHOOKS = {
   makeB: 'https://hook.eu2.make.com/uishntrm4b5350rij0ssujkmv8krqosn?clientMondayID=11395841792',
 } as const;
 
+// (4) זוג כתובות בדיקה מאותו הקשר לקוח — נתוני בדיקה פנימיים בלבד.
+// אינן משויכות לשום שלב, אינן נפתחות מ-CTA, ואינן מוצגות בממשק.
+// שם הלקוח, מזהה Monday, מזהה Airtable ונתוני המסלול שבתוכן אינם
+// מוצגים בשום מקום — גם לא ב-DEV (מוצג host+path בלבד).
+export const DEV_TEST_LINKS = {
+  formA:
+    'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%93%D7%95%D7%A8%D7%95%D7%9F%20%D7%99%D7%95%D7%92%D7%91%20%20(%D7%A4%D7%95%D7%A8%D7%95%D7%9D%20%D7%93%D7%9C%D7%99%D7%A7)&clientAirtableID=rec9v8nF13LGXxPeq&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=07/10/2026%20-%2012/10/2026&dest2=%D7%A7%D7%90%D7%95%D7%95%D7%90%D7%92%D7%95%D7%A6%D7%B3%D7%99%D7%A7%D7%95&date2=12/10/2026%20-%2014/10/2026&dest3=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date3=14/10/2026%20-%2015/10/2026&dest4=%D7%A7%D7%99%D7%95%D7%98%D7%95&date4=15/10/2026%20-%2019/10/2026&dest5=%D7%94%D7%99%D7%A8%D7%95%D7%A9%D7%99%D7%9E%D7%94&date5=19/10/2026%20-%2020/10/2026&dest6=%D7%98%D7%95%D7%A7%D7%99%D7%95&date6=20/10/2026%20-%2022/10/2026&dest1days=5&dest2days=2&dest3days=1&dest4days=4&dest5days=1&dest6days=2',
+  formB:
+    'https://mrjapan.fillout.com/t/vYY9mWeMQsus?clientName=%D7%93%D7%95%D7%A8%D7%95%D7%9F%20%D7%99%D7%95%D7%92%D7%91%20%20(%D7%A4%D7%95%D7%A8%D7%95%D7%9D%20%D7%93%D7%9C%D7%99%D7%A7)&mondayClientId=11894977501',
+} as const;
+
 // ============================================================
 // DEV_LINK_INVENTORY — מלאי טכני לבדיקות בלבד.
 // לא מחובר לשום שלב במסע. journeyAction נקבע רק אחרי אימות עסקי;
@@ -402,8 +413,10 @@ export interface DevLink {
 
 export const DEV_LINK_INVENTORY: DevLink[] = [
   {
+    // אותו טופס שמשויך לפעולת המלונות, בהקשר הלקוח שנמסר לבדיקה.
+    // המיפוי במסע ממשיך להשתמש ב-DEMO_ACTION_LINKS ואינו מושפע.
     id: 'hotelFillout', provider: 'fillout', filloutId: 'ohzZe7sCBrus',
-    url: DEMO_ACTION_LINKS.hotelSelection,
+    url: DEV_TEST_LINKS.formA,
     journeyAction: 'hotels', customerFacing: true,
   },
   {
@@ -413,7 +426,7 @@ export const DEV_LINK_INVENTORY: DevLink[] = [
   },
   {
     id: 'filloutD', provider: 'fillout', filloutId: 'vYY9mWeMQsus',
-    url: UNASSIGNED_LINKS.filloutUnknown,
+    url: DEV_TEST_LINKS.formB,
     journeyAction: 'unknown', customerFacing: true,
   },
   {
