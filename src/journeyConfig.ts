@@ -17,11 +17,7 @@ export type PackageId = 'basic' | 'standard' | 'advanced';
 export type Ownership = 'client' | 'team' | 'both' | 'none';
 export type SheetKind =
   | 'meeting'
-  | 'form'
   | 'payment'
-  | 'selections-form'     // טופס בחירת המלונות (בחירה בפרוטוטייפ)
-  | 'selections-review'   // סיכום בחירת המלונות לפני שליחה
-  | 'selections-view'     // צפייה בבחירה שנשלחה (קריאה בלבד)
   | 'attractions-pay'     // תשלום אטרקציות (סימולציה; המנגנון בפועל יוגדר)
   | 'feedback'            // טופס משוב (דמו)
   | 'feedback-view'       // צפייה במשוב שנשלח (קריאה בלבד)
@@ -38,10 +34,12 @@ export type TimeToTripScenario = 'moreThanThreeMonths' | 'lessThanThreeMonths';
 export type ActionStatus = 'pending' | 'waitingForTeam' | 'completed';
 
 // איך הפעולה נפתחת:
-//   embedded — תוכן חיצוני בתוך האפליקציה (EmbeddedActionSheet)
+//   fillout  — טופס Fillout מוטמע (ספק ידוע; אם יידרש embed רשמי,
+//              השינוי יהיה כאן בלבד ולא ב-UI)
+//   embedded — תוכן חיצוני אחר מוטמע באפליקציה
 //   external — פעולה שקורית באמת מחוץ למר יפן (למשל פגישת Zoom)
 //   sheet    — מסך פנימי קיים של המוצר (BottomSheet)
-export type OpenMode = 'embedded' | 'external' | 'sheet';
+export type OpenMode = 'fillout' | 'embedded' | 'external' | 'sheet';
 
 export interface JourneyAction {
   id: string;
@@ -224,8 +222,6 @@ export const STAGES: Stage[] = [
     name: 'בחירת מלונות',
     icon: '🏨',
     packages: ALL,
-    historyAsset: 'הבחירות שלך',
-    historyOpens: 'selections-view',
     historyText: 'הפעולות הושלמו והועברו לטיפול.',
     subStates: [
       // הפעולות הפעילות והשלמתן נגזרות ב-App מ-stageActions()
@@ -352,22 +348,18 @@ export const PAYMENT_DETAILS = {
   cta: 'מעבר לתשלום',
 };
 
-// בחירת המלונות של הלקוח — נתוני דמו ריאליסטיים (mock; בעתיד מ-Monday)
-export const SELECTIONS_MOCK = {
-  hotels: [
-    { city: 'Tokyo', name: 'Hotel Gracery Shinjuku' },
-    { city: 'Kyoto', name: 'Cross Hotel Kyoto' },
-    { city: 'Osaka', name: 'Hotel The Flag' },
-  ],
-};
-
 // ===== קישורי פעולה (נתוני דמו) =====
 // הקישור המלא כפי שהוא קיים ב-Monday, כמות שהוא — כתובת פעולה *אטומה*.
 // ה-UI אינו מפרש אותה: לא מפרק פרמטרים, לא מחלץ מזהים, לא בונה כתובת
 // ולא מנהל מזהה לקוח. בפרודקשן הקישור יגיע מהבקאנד לפי הלקוח המחובר.
 export const DEMO_ACTION_LINKS = {
+  // ⚠️ שיוך עסקי לאישור: הקישור הזה נמסר עבור פעולת בחירת המלונות.
+  // מקורו (עמודת Monday) טרם אומת מולנו — יש לאשר לפני פרודקשן.
   hotelSelection:
     'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%A9%D7%92%D7%99%D7%AA%20%D7%A7%D7%99%D7%A0%D7%9F-%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%20%20(%D7%94%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%D7%99%D7%9D)&clientAirtableID=recPNgSfcIpGwEROL&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=08/12/2026%20-%2011/12/2026&dest2=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date2=11/12/2026%20-%2012/12/2026&dest3=%D7%A7%D7%99%D7%95%D7%98%D7%95&date3=12/12/2026%20-%2015/12/2026&dest4=%D7%90%D7%95%D7%A1%D7%A7%D7%94&date4=15/12/2026%20-%2017/12/2026&dest5=%D7%98%D7%95%D7%A7%D7%99%D7%95&date5=17/12/2026%20-%2020/12/2026&dest1days=3&dest2days=1&dest3days=3&dest4days=2&dest5days=3',
+  // קישור אמיתי שנמסר אך *טרם שויך* לפעולה במסע. לא מחברים אותו לשום
+  // שלב עד שיימסר לאיזו פעולה (ואיזו עמודת Monday) הוא שייך.
+  unassignedZitePage: 'https://wnzocgbazy.zite.so/?id=12683534596',
 } as const;
 
 // ============================================================
@@ -382,7 +374,7 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     id: 'service-payment', stageId: 'service-payment',
     icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום',
-    // כשתסופק כתובת תשלום אמיתית — openMode יעבור ל-embedded/external
+    // אין עדיין כתובת תשלום אמיתית. נשאר על מסך המוצר הקיים.
     openMode: 'sheet', opens: 'payment', url: null,
   },
   {
@@ -395,23 +387,27 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     id: 'changes-form', stageId: 'changes-form',
     icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס',
-    openMode: 'sheet', opens: 'form', url: null,   // מוכן ל-embedded עם URL אמיתי
+    // חסר: קישור טופס בקשות השינויים (Plan changes requests form).
+    // במפורש *לא* משתמשים בקישור המלונות ולא בטופס מדומה.
+    openMode: 'fillout', url: null,
   },
   {
     id: 'hotels', stageId: 'selections',
     icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
-    openMode: 'embedded', url: DEMO_ACTION_LINKS.hotelSelection, opens: 'selections-form',
+    openMode: 'fillout', url: DEMO_ACTION_LINKS.hotelSelection,
   },
   {
     id: 'attractions', stageId: 'selections',
     icon: '🎟️', title: 'תשלום אטרקציות', cta: 'לתשלום',
+    // חסר: קישור התשלום. כתובת נפרדת משלה — לא הקישור של המלונות.
     openMode: 'sheet', opens: 'attractions-pay', url: null,
     requiresPaymentWindow: true,
   },
   {
     id: 'feedback', stageId: 'feedback',
     icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', ctaFull: 'למילוי המשוב',
-    openMode: 'sheet', opens: 'feedback', url: null,   // מוכן ל-embedded
+    // חסר: קישור טופס המשוב (Feedback Form Link).
+    openMode: 'sheet', opens: 'feedback', url: null,
   },
 ];
 

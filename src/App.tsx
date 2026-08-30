@@ -5,7 +5,6 @@ import {
   ActionStatus,
   MEETING_DETAILS,
   PAYMENT_DETAILS,
-  SELECTIONS_MOCK,
   PackageId,
   SCENARIO,
   SheetKind,
@@ -22,6 +21,7 @@ import { HistoricalStagePanel } from './components/HistoricalStagePanel';
 import { JourneyFullView } from './components/JourneyFullView';
 import { BottomSheet } from './components/BottomSheet';
 import { EmbeddedActionSheet } from './components/EmbeddedActionSheet';
+import { EmbedDiagnostics } from './components/EmbedDiagnostics';
 import { CardDecor } from './components/CardDecor';
 import { DemoControls } from './components/DemoControls';
 
@@ -49,26 +49,6 @@ type SheetOpen = SheetKind | 'full';
 
 // משוב ברירת מחדל לצפייה כשמדלגים לתת-מצב "נשלח" בלי למלא (דמו)
 const FALLBACK_FEEDBACK = { rating: 5, text: 'הטיול היה חלומי — תודה על הליווי לאורך כל הדרך! 🇯🇵' };
-
-// הלקוח בוחר מלונות בלבד — עבור אטרקציות הפעולה היא תשלום, לא בחירה
-const ALL_HOTELS = SELECTIONS_MOCK.hotels.map((h) => h.name);
-
-// רשימת בחירת המלונות לקריאה בלבד — לסיכום לפני שליחה ולצפייה אחריה
-function SelectionsList({ selected }: { selected: string[] }) {
-  const hotels = SELECTIONS_MOCK.hotels.filter((h) => selected.includes(h.name));
-  return (
-    <>
-      <div className="sheet-list-title">🏨 מלונות</div>
-      <div className="sheet-list">
-        {hotels.map((h) => (
-          <div key={h.name} className="sheet-li">
-            <span className="en"><b>{h.city}</b> — {h.name}</span>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-}
 
 // דירוג כוכבים — אינטראקטיבי בטופס, קריאה בלבד בצפייה
 function Stars({ value, onRate }: { value: number; onRate?: (v: number) => void }) {
@@ -110,6 +90,9 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // פעולה שנפתחת מוטמעת בתוך האפליקציה (כתובת אטומה מהקונפיג).
   // מצב תצוגה בלבד — אינו נוגע ב-currentStage/previewStage ובהתקדמות.
   const [embedded, setEmbedded] = useState<{ id: string; title: string; url: string } | null>(null);
+  // פעולה שטרם חובר לה קישור אמיתי (DEV) — שם הפעולה, או null
+  const [unlinked, setUnlinked] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState(false);   // DEV בלבד
   // ברירת מחדל בפרוטוטייפ: מצב דמו פעיל — כל התחנות לחיצות מיד.
   // מצב לקוח (עתידי נעול) נבדק ידנית דרך המתג בפאנל ה-Demo.
   const [demoMode, setDemoMode] = useState(true);
@@ -119,10 +102,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const [feedback, setFeedback] = useState<{ rating: number; text: string } | null>(null);
   const [fbRating, setFbRating] = useState(0);
   const [fbText, setFbText] = useState('');
-
-  // בחירת מלונות: טיוטה (נשמרת בין הטופס לסיכום) + מה שנשלח (קריאה בלבד)
-  const [chosen, setChosen] = useState<string[]>([]);
-  const [submittedSel, setSubmittedSel] = useState<string[] | null>(null);
 
   // ===== תרחיש זמן-לטיול (הכלל העסקי: "3 חודשים לפני הטיול") =====
   // דגל תרחיש דמו — במימוש אמיתי ייגזר מתאריכי הטיול/Monday.
@@ -176,7 +155,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     ? {
         id: 'sel-done', demoLabel: 'הושלם', ownership: 'none',
         confirms: [selectionRows.length > 1 ? 'הפעולות הושלמו' : 'בחירת המלונות הושלמה'],
-        viewLabel: 'צפייה בבחירות', viewOpens: 'selections-view',
         autoAdvance: true,
       }
     : {
@@ -202,7 +180,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // מנתב פעולה לפי ה-openMode שלה בלבד. אין כאן if לפי stageId ואין
   // יעדים מקודדים — ההתנהגות מגיעה מנתוני הפעולה.
   function handleAction(action: ActionRow) {
-    if (action.openMode === 'embedded' && action.url) {
+    if ((action.openMode === 'fillout' || action.openMode === 'embedded') && action.url) {
       setEmbedded({ id: action.id, title: action.title, url: action.url });
       return;
     }
@@ -210,8 +188,10 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
       window.open(action.url, '_blank', 'noopener,noreferrer');
       return;
     }
-    // 'sheet', או מצב שטרם סופקה לו כתובת — המסך הפנימי הקיים
-    if (action.opens && action.opens !== 'none') setSheet(action.opens);
+    if (action.opens && action.opens !== 'none') { setSheet(action.opens); return; }
+    // אין כתובת אמיתית ואין מסך פנימי — מצב "טרם חובר". הודעה פנימית
+    // לצורכי הדמו בלבד; בפרודקשן פעולה כזו כלל לא תוצג ללקוח.
+    setUnlinked(action.title);
   }
 
   // האם בשלב מסוים יש פעולה פתוחה של הלקוח — נגזר מהקונפיג בלבד.
@@ -359,23 +339,9 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   }
 
   // סימולציות (mock) — משנות את תת-המצב של השלב שבו הן קרו
-  function submitForm() {
-    setSheet('none');
-    setSubSel((m) => ({ ...m, 'changes-form': 'submitted' }));
-  }
   function submitPayment() {
     setSheet('none');
     setSubSel((m) => ({ ...m, 'service-payment': 'paid' }));
-  }
-  // בחירה בטופס (טיוטה) — נשמרת גם כשחוזרים מהסיכום לטופס
-  function toggleChoice(name: string) {
-    setChosen((c) => (c.includes(name) ? c.filter((x) => x !== name) : [...c, name]));
-  }
-  // אישור ושליחת בחירת המלונות — פעולת הלקוח הסתיימה, אך זו אינה
-  // השלמה סופית: המשימה עוברת ל"ממתינה לצוות" עד V ב-Monday.
-  function submitSelections() {
-    setSubmittedSel(chosen);
-    markHotelsSent();
   }
   // הלקוח סיים את חלקו. זו אינה התקדמות במסע: המשימה עוברת ל"נשלח"
   // בלבד, וההשלמה תגיע מהתהליך הפנימי. משמש גם את הטופס המוטמע.
@@ -400,8 +366,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     setWindowOpened(false);
     setHotelTaskStatus('pending');
     setAttractionsTaskStatus('pending');
-    setSubmittedSel(null);
-    setChosen([]);
     setSheet('none');
   }
   function submitFeedback() {
@@ -414,8 +378,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   }
 
   const shownFeedback = feedback ?? FALLBACK_FEEDBACK;
-  // בצפייה: מה שנשלח בפועל; fallback לכל המלונות כשמדלגים ישירות בדמו
-  const shownSelections = submittedSel ?? ALL_HOTELS;
 
   return (
     <div className="page" {...gestureProps}>
@@ -517,18 +479,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         </BottomSheet>
       )}
 
-      {sheet === 'form' && (
-        <BottomSheet title="טופס שינויים" onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">מילוי טופס שינויים</div>
-            <div className="sheet-sub">פתוח עד 18/08 · לאחר השליחה הטופס זמין לצפייה בלבד</div>
-            <div className="sheet-desc">ספרו לנו מה תרצו לשנות בתוכנית — מסלול, קצב, לינה או כל דבר אחר.</div>
-            <textarea className="sheet-textarea" placeholder="הבקשות שלכם..." rows={4} />
-            <button className="sp-cta sheet-cta" onClick={submitForm}>שליחת הטופס ←</button>
-          </div>
-        </BottomSheet>
-      )}
-
       {sheet === 'payment' && (
         <BottomSheet title={PAYMENT_DETAILS.title} onClose={() => setSheet('none')}>
           <div className="sheet-body">
@@ -537,65 +487,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
             <div className="sheet-desc">{PAYMENT_DETAILS.description}</div>
             <div className="sheet-line">{PAYMENT_DETAILS.line}</div>
             <button className="sp-cta sheet-cta" onClick={submitPayment}>{PAYMENT_DETAILS.cta} ←</button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* טופס בחירת המלונות (בחירה חיה בפרוטוטייפ; מלונות בלבד) */}
-      {sheet === 'selections-form' && (
-        <BottomSheet title="בחירת מלונות" onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">בחירת מלונות</div>
-            <div className="sheet-desc">בחרו את המלונות המתאימים לכם.</div>
-            <div className="sheet-list-title">🏨 מלונות</div>
-            <div className="picks">
-              {SELECTIONS_MOCK.hotels.map((h) => (
-                <label key={h.name} className={`pick${chosen.includes(h.name) ? ' on' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={chosen.includes(h.name)}
-                    onChange={() => toggleChoice(h.name)}
-                  />
-                  <span className="en"><b>{h.city}</b> — {h.name}</span>
-                </label>
-              ))}
-            </div>
-            <button
-              className="sp-cta sheet-cta"
-              disabled={chosen.length === 0}
-              onClick={() => setSheet('selections-review')}
-            >
-              סקירת הבחירות ←
-            </button>
-            <button className="sheet-secondary" onClick={() => setSheet('none')}>ביטול</button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* סיכום בחירת המלונות לפני שליחה — אישור, לא עוד טופס */}
-      {sheet === 'selections-review' && (
-        <BottomSheet title="סיכום הבחירות שלכם" onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">סיכום הבחירות שלכם</div>
-            <SelectionsList selected={chosen} />
-            <div className="sheet-warn">
-              <b>לפני שממשיכים, כדאי לוודא שהכול נכון</b>
-              <span>לאחר השליחה הבחירות יועברו לצוות מר יפן ויהיו זמינות לצפייה בלבד.</span>
-            </div>
-            <button className="sp-cta sheet-cta" onClick={submitSelections}>אישור ושליחת הבחירות ←</button>
-            <button className="sheet-secondary" onClick={() => setSheet('selections-form')}>חזרה לבחירות</button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* צפייה בבחירה שנשלחה — קריאה בלבד, ללא עריכה/מחיקה/שליחה מחדש */}
-      {sheet === 'selections-view' && (
-        <BottomSheet title="הבחירות שלכם" onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">הבחירות שלכם</div>
-            <div className="sheet-sent">✓ הבחירות נשלחו לצוות מר יפן</div>
-            <SelectionsList selected={shownSelections} />
-            <button className="sheet-secondary" onClick={() => setSheet('none')}>סגירה</button>
           </div>
         </BottomSheet>
       )}
@@ -659,6 +550,20 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         />
       )}
 
+      {/* DEV — פעולה שטרם חובר לה קישור אמיתי. לא מוצג ללקוח בפרודקשן. */}
+      {unlinked && (
+        <BottomSheet title={unlinked} onClose={() => setUnlinked(null)}>
+          <div className="sheet-body">
+            <div className="sheet-title">{unlinked}</div>
+            <div className="sheet-dev">DEV · הקישור לפעולה זו טרם חובר</div>
+            <div className="sheet-desc">
+              הקישור האמיתי יגיע מהעמודה המתאימה ב-Monday. עד אז לא מוצג כאן תוכן מדומה.
+            </div>
+            <button className="sheet-secondary" onClick={() => setUnlinked(null)}>סגירה</button>
+          </div>
+        </BottomSheet>
+      )}
+
       {/* פעולת לקוח שנפתחת בתוך מר יפן — הלקוח לא עוזב את האפליקציה */}
       {embedded && (
         <EmbeddedActionSheet
@@ -673,6 +578,8 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
           }}
         />
       )}
+
+      {diagnostics && <EmbedDiagnostics onClose={() => setDiagnostics(false)} />}
 
       <DemoControls
         pkg={pkg}
@@ -692,6 +599,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         attractionsTaskStatus={attractionsTaskStatus}
         attractionsAvailable={attractionsAvailable}
         onHotelsSent={markHotelsSent}
+        onDiagnostics={() => setDiagnostics(true)}
         onMondayV={simulateMondayV}
         onTimeScenario={handleTimeScenario}
         onOpenWindow={() => setWindowOpened(true)}

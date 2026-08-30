@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 // גיליון פעולה מוטמע — הדפוס הכללי של "פעולת לקוח נפתחת בתוך מר יפן".
-// הרכיב אינו יודע איזה תוכן הוא מציג (מלונות / טופס שינויים / פידבק):
-// הוא מקבל כותרת וכתובת אטומה, ומרנדר אותן.
+// הרכיב אינו יודע איזה תוכן הוא מציג: כותרת + כתובת אטומה, וזהו.
 interface Props {
   title: string;
   url: string;
@@ -10,35 +9,72 @@ interface Props {
   onSubmitted?: () => void;   // אופציונלי: התוכן המוטמע דיווח על שליחה
 }
 
-// דיווח שליחה מהטופס המוטמע — best-effort. אם ההודעה לא מגיעה, לא קורה
-// כלום: אנחנו לא מדמים סנכרון שאינו קיים.
-function isSubmitMessage(e: MessageEvent): boolean {
-  if (!/(^|\.)fillout\.com$/.test(new URL(e.origin).hostname)) return false;
-  const d = e.data as unknown;
-  const raw = typeof d === 'string' ? d : typeof d === 'object' && d ? JSON.stringify(d) : '';
-  return /submit/i.test(raw);
+export type EmbedState = 'loading' | 'loaded' | 'error';
+
+// ===== זיהוי חסימת הטמעה — שני אותות בלתי תלויים =====
+// הדפדפן לא מדווח על כישלון frame חוצה-מקור, ו-onload נורה גם על עמוד
+// שגיאה. לכן משלבים שתי בדיקות, ואף אחת מהן אינה עוקפת אבטחה:
+//
+// (1) האם היעד בכלל נגיש? fetch ב-mode:'no-cors' מחזיר תשובה אטומה
+//     כשהיעד נענה, ונכשל רק בכשל רשת אמיתי. כך מפרידים "לא הגענו
+//     לשרת" מ"הגענו אבל לא מוצג".
+// (2) האם ההטמעה נחסמה? frame שנחסם ב-X-Frame-Options / frame-ancestors
+//     נשאר על about:blank — same-origin, ולכן location שלו *ניתן
+//     לקריאה*. תוכן חוצה-מקור שנטען בהצלחה זורק SecurityError.
+export async function reachable(url: string): Promise<boolean> {
+  try {
+    await fetch(url, { mode: 'no-cors', cache: 'no-store', redirect: 'follow' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function frameShowsRemoteContent(frame: HTMLIFrameElement | null): boolean {
+  if (!frame) return false;
+  try {
+    const href = frame.contentWindow?.location.href;
+    return !(href === undefined || href === 'about:blank');
+  } catch {
+    return true;   // חסום לקריאה = תוכן חוצה-מקור נמצא שם
+  }
+}
+
+// המסקנה המשולבת. 'loading' כל עוד אין מספיק מידע.
+export function embedVerdict(reach: boolean | null, frame: HTMLIFrameElement | null,
+                             frameLoaded: boolean): EmbedState {
+  if (reach === false) return 'error';                 // לא הגענו ליעד
+  if (!frameLoaded || reach === null) return 'loading';
+  return frameShowsRemoteContent(frame) ? 'loaded' : 'error';
 }
 
 export function EmbeddedActionSheet({ title, url, onClose, onSubmitted }: Props) {
-  const [loaded, setLoaded] = useState(false);
-  const [stalled, setStalled] = useState(false);
+  const [reach, setReach] = useState<boolean | null>(null);
+  const [frameLoaded, setFrameLoaded] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [, force] = useState(0);
+  const state: EmbedState = timedOut
+    ? embedVerdict(reach, frame.current, true)
+    : embedVerdict(reach, frame.current, frameLoaded);
 
-  // הדפדפן אינו חושף אם frame חוצה-מקור נחסם (X-Frame-Options /
-  // frame-ancestors) או פשוט נכשל: onload נורה גם על עמוד שגיאה, ואי
-  // אפשר לקרוא את תוכנו. לכן לא מנחשים:
-  //   • כל עוד לא נורה onload — מצב טעינה, ואחרי 8 שניות הסבר.
-  //   • תמיד יש שורת גיבוי גלויה בתחתית הגיליון, ביוזמת הלקוח בלבד.
-  // כך הגיליון לעולם אינו נשאר מסך לבן בלי הסבר. אין עקיפת אבטחה.
+  useEffect(() => { reachable(url).then(setReach); }, [url]);
   useEffect(() => {
-    if (loaded) return;
-    const t = window.setTimeout(() => setStalled(true), 8000);
+    const t = window.setTimeout(() => setTimedOut(true), 10000);
     return () => window.clearTimeout(t);
-  }, [loaded]);
+  }, []);
+  // בדיקה חוזרת אחרי onload — הספק עשוי לבצע הפניה פנימית
+  function check() { setFrameLoaded(true); window.setTimeout(() => force((n) => n + 1), 900); }
 
+  // דיווח שליחה מהטופס המוטמע — best-effort, ורק ממקור fillout.
+  // אם ההודעה לא מגיעה, לא קורה כלום: לא מדמים סנכרון שאינו קיים.
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       try {
-        if (isSubmitMessage(e)) onSubmitted?.();
+        if (!/(^|\.)fillout\.com$/.test(new URL(e.origin).hostname)) return;
+        const d = e.data as unknown;
+        const raw = typeof d === 'string' ? d : typeof d === 'object' && d ? JSON.stringify(d) : '';
+        if (/submit/i.test(raw)) onSubmitted?.();
       } catch {
         /* origin לא תקין — מתעלמים */
       }
@@ -66,34 +102,24 @@ export function EmbeddedActionSheet({ title, url, onClose, onSubmitted }: Props)
 
         <div className="eas-body">
           <iframe
-            className={`eas-frame${loaded ? ' on' : ''}`}
+            ref={frame}
+            className={`eas-frame${state === 'loaded' ? ' on' : ''}`}
             src={url}
             title={title}
-            onLoad={() => setLoaded(true)}
+            onLoad={check}
             allow="clipboard-write; fullscreen"
             referrerPolicy="no-referrer-when-downgrade"
           />
-          {!loaded && (
+          {state === 'loading' && <div className="eas-state">טוען…</div>}
+          {/* כישלון הטמעה — הודעה קצרה, והיציאה החוצה רק כאן וביוזמת הלקוח */}
+          {state === 'error' && (
             <div className="eas-state">
-              {stalled ? (
-                <>
-                  <b>הטופס מתעכב בטעינה</b>
-                  <span>אפשר לפתוח אותו בחלון נפרד ולהמשיך משם.</span>
-                </>
-              ) : (
-                'טוען…'
-              )}
+              <b>לא הצלחנו להציג את התוכן בתוך האפליקציה.</b>
+              <a className="eas-fallback" href={url} target="_blank" rel="noopener noreferrer">
+                פתיחה בחלון חדש ↗
+              </a>
             </div>
           )}
-        </div>
-
-        {/* שורת גיבוי קבועה — תמיד גלויה, לעולם לא הפניה אוטומטית.
-            מבטיחה שגם אם התוכן אינו נטען, אין מסך לבן ללא מוצא. */}
-        <div className="eas-foot">
-          <span>לא רואים את הטופס?</span>
-          <a className="eas-out" href={url} target="_blank" rel="noopener noreferrer">
-            פתיחה בחלון חדש ↗
-          </a>
         </div>
       </div>
     </div>

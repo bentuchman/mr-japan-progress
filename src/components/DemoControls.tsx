@@ -19,6 +19,7 @@ interface Props {
   attractionsTaskStatus: ActionStatus;
   attractionsAvailable: boolean;
   onHotelsSent: () => void;   // דמו: הלקוח שלח את הטופס המוטמע
+  onDiagnostics: () => void;  // דמו: בדיקת הטמעה של הקישורים האמיתיים
   onMondayV: (task: 'hotels' | 'attractions') => void;
   onTimeScenario: (s: TimeToTripScenario) => void;
   onOpenWindow: () => void;
@@ -77,6 +78,9 @@ export function DemoControls(props: Props) {
             onClick={() => (window as unknown as { __mrjToggleCompare?: () => void }).__mrjToggleCompare?.()}
           >
             📱 השוואת תרחישים
+          </button>
+          <button className="dbtn demo-mobile-btn" onClick={props.onDiagnostics}>
+            🔎 בדיקת הטמעה של הקישורים
           </button>
         </>
       )}
