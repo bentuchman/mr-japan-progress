@@ -15,20 +15,18 @@ interface Props {
   url: string;
   title: string;
   filloutFormId?: string;
-  filloutDomain?: string;
   onReady: () => void;
   onFrameLoad?: () => void;
   onSubmitted?: () => void;
   webFrameRef: React.Ref<HTMLIFrameElement>;
 }
 
-export function ActionContentRenderer({ url, title, filloutFormId, filloutDomain, onReady, onFrameLoad, onSubmitted, webFrameRef }: Props) {
+export function ActionContentRenderer({ url, title, filloutFormId, onReady, onFrameLoad, onSubmitted, webFrameRef }: Props) {
   if (isFilloutUrl(url) && filloutFormId) {
     return (
       <FilloutRenderer
         formId={filloutFormId}
         url={url}
-        domain={filloutDomain}
         onReady={onReady}
         onFrameLoad={onFrameLoad}
         onSubmitted={onSubmitted}

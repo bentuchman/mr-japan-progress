@@ -7,17 +7,16 @@ import { FilloutStandardEmbed } from '@fillout/react';
 // מנהלת אתחול יחיד ומנקה את עצמה — אין הזרקת סקריפט ידנית ואין
 // אתחול כפול ב-StrictMode.
 //
-// מה מגיע מהכתובת: אך ורק מה שנדרש טכנית להטמעה — הדומיין ומחרוזת
-// השאילתה, שמומרת בשלמותה למפת פרמטרים ומועברת ל-prop הרשמי
-// `parameters`. האפליקציה אינה קוראת אף ערך בודד, אינה גוזרת ממנו
-// מצב עסקי ואינה מציגה אותו ב-UI.
+// יעד ההטמעה הוא תשתית ההטמעה הייעודית של הספק. הדומיין המותאם של
+// מר יפן הוא כתובת השיתוף ללקוח — לא משטח הטמעה — ולכן אינו נמסר כאן
+// כלל: אין prop של domain, ואי אפשר לכוון את ההטמעה אליו.
+//
+// מה מגיע מהכתובת: אך ורק מחרוזת השאילתה, שמומרת בשלמותה למפת
+// פרמטרים ומועברת ל-prop הרשמי `parameters`. האפליקציה אינה קוראת אף
+// ערך בודד, אינה גוזרת ממנו מצב עסקי ואינה מציגה אותו ב-UI.
 interface Props {
   formId: string;
   url: string;            // הכתובת המלאה, אטומה
-  // דומיין מותאם. לא מוגדר → ההטמעה רצה על משטח ההגשה הרגיל של הספק,
-  // שהוא הנתיב הנתמך והסביר ביותר להצגה בתוך frame. מגדירים אותו רק
-  // אם הטופס נשען על יכולות שקיימות רק בדומיין העצמי (למשל custom JS).
-  domain?: string;
   onReady: () => void;      // onInit של הספק — אישור מלא
   // ה-iframe שהספק הזריק סיים להיטען. אות חלש יותר מ-onInit, אבל מספיק
   // כדי להפסיק להסתיר את התוכן: אחרת מסך טעינה אטום מכסה טופס תקין.
@@ -36,7 +35,7 @@ function paramsOf(url: string): Record<string, string> {
   return out;
 }
 
-export function FilloutRenderer({ formId, url, domain, onReady, onFrameLoad, onSubmitted }: Props) {
+export function FilloutRenderer({ formId, url, onReady, onFrameLoad, onSubmitted }: Props) {
   // יציב בין רינדורים — אחרת ההטמעה הייתה מאותחלת מחדש בכל render
   const parameters = useMemo(() => paramsOf(url), [url]);
   const host = useRef<HTMLDivElement>(null);
@@ -60,7 +59,6 @@ export function FilloutRenderer({ formId, url, domain, onReady, onFrameLoad, onS
     <div className="fo-host" ref={host}>
       <FilloutStandardEmbed
         filloutId={formId}
-        domain={domain}
         parameters={parameters}
         onInit={onReady}
         onSubmit={() => onSubmitted?.()}

@@ -58,8 +58,6 @@ export interface JourneyAction {
   // ל-openMode 'fillout': מזהה הטופס אצל הספק. נשמר בקונפיג ולא נגזר
   // מהכתובת — הכתובת נשארת אטומה.
   filloutFormId?: string;
-  // דומיין מותאם ל-Fillout. לא מוגדר = משטח ההגשה הרגיל של הספק.
-  filloutDomain?: string;
   requiresPaymentWindow?: boolean;  // פעילה רק כשחלון תשלום האטרקציות פתוח
 }
 

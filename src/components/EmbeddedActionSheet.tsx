@@ -7,7 +7,6 @@ interface Props {
   title: string;
   url: string;
   filloutFormId?: string;     // נדרש טכנית ל-renderer של Fillout
-  filloutDomain?: string;     // דומיין מותאם — אופציונלי
   onClose: () => void;
   onSubmitted?: () => void;   // אופציונלי: התוכן המוטמע דיווח על שליחה
 }
@@ -51,7 +50,7 @@ export function embedVerdict(reach: boolean | null, frame: HTMLIFrameElement | n
   return frameShowsRemoteContent(frame) ? 'loaded' : 'error';
 }
 
-export function EmbeddedActionSheet({ title, url, filloutFormId, filloutDomain, onClose, onSubmitted }: Props) {
+export function EmbeddedActionSheet({ title, url, filloutFormId, onClose, onSubmitted }: Props) {
   const isFillout = isFilloutUrl(url) && !!filloutFormId;
   const [reach, setReach] = useState<boolean | null>(null);
   const [ready, setReady] = useState(false);
@@ -109,7 +108,6 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, filloutDomain, 
               url={url}
               title={title}
               filloutFormId={filloutFormId}
-              filloutDomain={filloutDomain}
               onReady={onReady}
               onFrameLoad={onFrameLoad}
               onSubmitted={onSubmitted}
