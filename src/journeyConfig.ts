@@ -55,6 +55,9 @@ export interface JourneyAction {
   // אמיתית לפעולה הזו (לא ממציאים קישורים). ה-UI אינו מפרש אותה.
   url: string | null;
   opens?: SheetKind;            // ל-openMode 'sheet' — איזה מסך פנימי נפתח
+  // ל-openMode 'fillout': מזהה הטופס אצל הספק. נשמר בקונפיג ולא נגזר
+  // מהכתובת — הכתובת נשארת אטומה.
+  filloutFormId?: string;
   requiresPaymentWindow?: boolean;  // פעילה רק כשחלון תשלום האטרקציות פתוח
 }
 
@@ -407,6 +410,7 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
     id: 'hotels', stageId: 'selections',
     icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
     openMode: 'fillout', url: DEMO_ACTION_LINKS.hotelSelection,
+    filloutFormId: 'ohzZe7sCBrus',
   },
   {
     id: 'attractions', stageId: 'selections',

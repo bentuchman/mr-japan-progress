@@ -360,12 +360,15 @@ button { font-family: inherit; cursor: pointer; }
 .eas-title { font-size: 15px; font-weight: 700; }
 .eas-close { border: none; background: none; color: var(--muted); font-size: 16px; padding: 4px 6px; line-height: 1; }
 .eas-close:hover { color: var(--ink); }
-.eas-body { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; }
-.eas-frame {
-  width: 100%; height: 100%; border: 0; display: block;
-  opacity: 0; transition: opacity .2s;
-}
-.eas-frame.on { opacity: 1; }
+/* שרשרת הגובה: sheet (flex column) → body (flex:1, min-height:0) →
+   content → מיכל ההטמעה → iframe. אף שלב אינו מקבל גובה אפס. */
+.eas-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #fff; }
+.eas-content { position: absolute; inset: 0; opacity: 0; transition: opacity .2s; }
+.eas-content.on { opacity: 1; }
+.eas-frame, .fo-frame { width: 100%; height: 100%; border: 0; display: block; }
+/* מיכל סקריפט ההטמעה של Fillout — גובה אמיתי, בלי גלישה אופקית */
+.fo-host { width: 100%; height: 100%; overflow-x: hidden; overflow-y: auto; }
+.fo-host iframe { width: 100%; height: 100%; border: 0; display: block; }
 /* מצב ביניים — טעינה, ואחריה הסבר. אין הפניה שקטה החוצה. */
 .eas-state {
   position: absolute; inset: 0; display: flex; flex-direction: column;

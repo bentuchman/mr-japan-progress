@@ -63,7 +63,9 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const [sheet, setSheet] = useState<SheetOpen>('none');
   // פעולה שנפתחת מוטמעת בתוך האפליקציה (כתובת אטומה מהקונפיג).
   // מצב תצוגה בלבד — אינו נוגע ב-currentStage/previewStage ובהתקדמות.
-  const [embedded, setEmbedded] = useState<{ id: string; title: string; url: string } | null>(null);
+  const [embedded, setEmbedded] = useState<
+    { id: string; title: string; url: string; filloutFormId?: string } | null
+  >(null);
   // פעולה שטרם חובר לה קישור אמיתי (DEV) — שם הפעולה, או null
   const [unlinked, setUnlinked] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState(false);   // DEV בלבד
@@ -151,7 +153,10 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   function handleAction(action: ActionRow) {
     if (action.url) {
       if (action.openMode === 'fillout' || action.openMode === 'embedded') {
-        setEmbedded({ id: action.id, title: action.title, url: action.url });
+        setEmbedded({
+          id: action.id, title: action.title, url: action.url,
+          filloutFormId: action.filloutFormId,
+        });
         return;
       }
       if (action.openMode === 'external') {
@@ -456,6 +461,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         <EmbeddedActionSheet
           title={embedded.title}
           url={embedded.url}
+          filloutFormId={embedded.filloutFormId}
           onClose={() => setEmbedded(null)}
           onSubmitted={() => {
             // דיווח שליחה מהתוכן המוטמע — רק לפעולת המלונות יש כרגע
