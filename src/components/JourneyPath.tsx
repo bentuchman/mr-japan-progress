@@ -9,46 +9,56 @@ interface Props {
   onOpenFull: () => void;
 }
 
-// פס ההתקדמות: ✓ טאופ הושלם · מספר בעיגול כתום מלא = השלב בפועל ·
-// ○ אפור חם עתידי · טבעת כתומה חלולה = שלב בתצוגה מקדימה (דמו).
-// ה-preview לעולם לא נראה "הושלם" — ההבחנה בין בפועל לתצוגה נשמרת.
+// פס ההתקדמות — שפת הפס של טפסי מר יפן: מונה שבר קטן משמאל, ולצדו
+// מקטעים קצרים ומעוגלים, אחד לכל שלב במסע. בלי עיגולים, בלי ✓,
+// בלי מספרים בתוך המקטעים. המקטעים נשארים לחיצים בדיוק כמו קודם.
 export function JourneyPath({ stages, currentIndex, previewIndex, demoMode, onSelectNode, onOpenFull }: Props) {
   const previewActive = previewIndex !== null && previewIndex >= 0 && previewIndex !== currentIndex;
+  // המונה והמילוי מציגים את אותו שלב שמוצג בשורה שמתחת — אחרת השניים
+  // היו סותרים זה את זה. זו בדיוק ההתנהגות של שורת "שלב X מתוך Y".
+  const shownIndex = previewActive ? previewIndex! : currentIndex;
   return (
     <div className="jwrap">
-      <div className="jpath" role="progressbar" aria-valuenow={currentIndex + 1} aria-valuemin={1} aria-valuemax={stages.length} aria-label={`שלב ${currentIndex + 1} מתוך ${stages.length}`}>
-        {stages.map((s, i) => {
-          const state = i < currentIndex ? 'done' : i === currentIndex ? 'now' : 'todo';
-          const previewed = previewActive && previewIndex === i;
-          const clickable = demoMode || state !== 'todo';
-          const label = demoMode
-            ? `תצוגה מקדימה — שלב ${i + 1}: ${s.name}`
-            : state === 'done'
-              ? `צפייה בשלב שהושלם: ${s.name}`
-              : state === 'now'
-                ? `השלב הנוכחי: ${s.name}`
-                : `שלב עתידי: ${s.name}`;
-          return (
-            <div key={s.id} className={`jp-step jp-${state}${previewed ? ' jp-previewed' : ''}`}>
-              {i > 0 && <span className={`jp-line ${i <= currentIndex ? 'filled' : ''}`} aria-hidden />}
+      <div className="jp-bar">
+        <div
+          className="jp-track"
+          role="progressbar"
+          aria-valuenow={currentIndex + 1}
+          aria-valuemin={1}
+          aria-valuemax={stages.length}
+          aria-label={`שלב ${currentIndex + 1} מתוך ${stages.length}`}
+        >
+          {stages.map((s, i) => {
+            const state = i < currentIndex ? 'done' : i === currentIndex ? 'now' : 'todo';
+            const previewed = previewActive && previewIndex === i;
+            const clickable = demoMode || state !== 'todo';
+            const label = demoMode
+              ? `תצוגה מקדימה — שלב ${i + 1}: ${s.name}`
+              : state === 'done'
+                ? `צפייה בשלב שהושלם: ${s.name}`
+                : state === 'now'
+                  ? `השלב הנוכחי: ${s.name}`
+                  : `שלב עתידי: ${s.name}`;
+            return (
               <button
-                className="jp-node"
+                key={s.id}
+                className={`jp-seg${i <= shownIndex ? ' filled' : ''}${previewed ? ' previewed' : ''}`}
                 disabled={!clickable}
                 title={s.name}
                 aria-label={label}
                 aria-current={state === 'now' ? 'step' : undefined}
                 onClick={() => onSelectNode(i)}
-              >
-                {state === 'done' ? '✓' : state === 'now' || previewed ? String(i + 1) : ''}
-              </button>
-            </div>
-          );
-        })}
+              />
+            );
+          })}
+        </div>
+        {/* המונה בספרות לטיניות — נשמר כשבר גם בתוך עמוד RTL */}
+        <span className="jp-frac" dir="ltr">{shownIndex + 1}/{stages.length}</span>
       </div>
       {/* שפת לקוח בלבד — מונחי דמו (בפועל/מציג) חיים רק בפאנל ה-Demo.
           ללא מקרא — הוויזואליה של הפס מדברת בעד עצמה. */}
       <div className="jp-count">
-        שלב {(previewActive ? previewIndex! : currentIndex) + 1} מתוך {stages.length}
+        שלב {shownIndex + 1} מתוך {stages.length}
         <span className="jp-sep">·</span>
         <button className="jp-all" onClick={onOpenFull}>כל שלבי המסע ←</button>
       </div>
