@@ -7,11 +7,9 @@ import { reachable, frameShowsRemoteContent } from './EmbeddedActionSheet';
 // DEV בלבד — בדיקת הקישורים האמיתיים. מחוץ לממשק הלקוח, אינו נוגע
 // במסע, בשלבים או במיפוי הפעולות.
 //
-// לכל טופס Fillout מורצות שלוש וריאציות באותו renderer:
-//   A · הכתובת המקורית ב-iframe ישיר (mrjapan.fillout.com)
-//   B · @fillout/react ללא domain (משטח ההטמעה של הספק)
-//   C · @fillout/react עם domain="mrjapan.fillout.com"
-// כך רואים איזו דרך באמת מציגה את הטופס, בלי לשייך אותו לשום שלב.
+// טפסי Fillout נבדקים אך ורק דרך ההטמעה הרשמית (@fillout/react),
+// בדיוק כמו מסלול הלקוח. הווריאציות שכיוונו iframe אל כתובת השיתוף
+// ואל הדומיין המותאם הוסרו — זו אינה תצורה שנרצה להריץ.
 //
 // Make webhook אינו מופעל אוטומטית — קריאה עלולה להריץ אוטומציה.
 // שמות, אימיילים ומזהים לעולם אינם מוצגים: host+path בלבד.
@@ -43,7 +41,7 @@ function paramsOf(url: string): Record<string, string> {
 
 type Report = (key: string, v: Verdict) => void;
 
-// --- וריאציה A: iframe ישיר אל הכתובת המקורית ---
+// --- iframe ישיר: לספקים שאינם Fillout (Zite) בלבד ---
 function DirectProbe({ id, url, report }: { id: string; url: string; report: Report }) {
   const [v, setV] = useState<Verdict>('pending');
   const frame = useRef<HTMLIFrameElement>(null);
@@ -62,15 +60,13 @@ function DirectProbe({ id, url, report }: { id: string; url: string; report: Rep
   );
 }
 
-// --- וריאציות B/C: ההטמעה הרשמית, עם/בלי דומיין מותאם ---
-function EmbedProbe({ id, link, domain, report }: {
-  id: string; link: DevLink; domain?: string; report: Report;
-}) {
+// --- ההטמעה הרשמית של Fillout — הדרך היחידה שנבדקת לטופס ---
+function EmbedProbe({ id, link, report }: { id: string; link: DevLink; report: Report }) {
   const [v, setV] = useState<Verdict>('pending');
   const host = useRef<HTMLDivElement>(null);
   const params = useRef(paramsOf(link.url));
   useEffect(() => {
-    reachable(`https://${domain ?? 'embed.fillout.com'}/t/${link.filloutId}`)
+    reachable(`https://embed.fillout.com/t/${link.filloutId}`)
       .then((up) => { if (!up) setV((p) => (p === 'init' ? p : 'unreachable')); });
     const to = window.setTimeout(() => setV((p) => (p === 'pending' ? 'blocked' : p)), 15000);
     // גם אם onInit לא נורה — נדע אם ה-iframe בכלל נטען
@@ -86,14 +82,14 @@ function EmbedProbe({ id, link, domain, report }: {
     const obs = node ? new MutationObserver(attach) : null;
     obs?.observe(node!, { childList: true, subtree: true });
     return () => { window.clearTimeout(to); obs?.disconnect(); };
-  }, [link.filloutId, domain]);
+  }, [link.filloutId]);
   useEffect(() => { report(id, v); }, [id, v, report]);
   return (
     <div className="dg-frame" ref={host}>
       <FilloutStandardEmbed
         filloutId={link.filloutId!}
-        domain={domain}
         parameters={params.current}
+        dynamicResize
         onInit={() => setV('init')}
       />
     </div>
@@ -138,8 +134,8 @@ export function LinkDiagnostics({ onClose }: { onClose: () => void }) {
   const others = DEV_LINK_INVENTORY.filter((l) => l.provider !== 'fillout');
 
   const summary = [
-    ...forms.flatMap((l) => ['A', 'B', 'C'].map((k) =>
-      `${l.id} (${l.filloutId}) · ${k} → ${TEXT[res[`${l.id}:${k}`] ?? 'pending']}`)),
+    ...forms.map((l) =>
+      `${l.id} (${l.filloutId}) · הטמעה רשמית → ${TEXT[res[l.id] ?? 'pending']}`),
     ...others.map((l) => `${l.id} · ${safeRef(l.url)} → ${TEXT[res[l.id] ?? 'pending']}`),
   ].join('\n');
 
@@ -150,7 +146,7 @@ export function LinkDiagnostics({ onClose }: { onClose: () => void }) {
           <div className="sheet-title">בדיקת הקישורים האמיתיים</div>
           <div className="sheet-dev">DEV · לא חלק ממסך הלקוח</div>
           <div className="sheet-desc">
-            כל טופס נבדק בשלוש דרכים: A כתובת ישירה · B הטמעה רשמית · C הטמעה רשמית עם דומיין מותאם.
+            טפסי Fillout נבדקים דרך ההטמעה הרשמית בלבד — אותו מסלול שהלקוח רואה.
             לפירוט חסימות — ה-Console של הדפדפן.
           </div>
 
@@ -158,21 +154,11 @@ export function LinkDiagnostics({ onClose }: { onClose: () => void }) {
             <div key={l.id} className="dg-block">
               <div className="dg-label">TEST FILLOUT {i + 1} · <span className="dg-host">{safeRef(l.url)}</span></div>
               {run.has(l.id) ? (
-                <>
-                  {(['A', 'B', 'C'] as const).map((k) => (
-                    <div key={k} className="dg-row">
-                      <div className="dg-main">
-                        {k === 'A' ? 'A · כתובת ישירה' : k === 'B' ? 'B · הטמעה רשמית' : 'C · הטמעה + דומיין מותאם'}
-                      </div>
-                      <span className={`dg-state dg-${res[`${l.id}:${k}`] ?? 'pending'}`}>
-                        {TEXT[res[`${l.id}:${k}`] ?? 'pending']}
-                      </span>
-                      {k === 'A' && <DirectProbe id={`${l.id}:A`} url={l.url} report={report} />}
-                      {k === 'B' && <EmbedProbe id={`${l.id}:B`} link={l} report={report} />}
-                      {k === 'C' && <EmbedProbe id={`${l.id}:C`} link={l} domain="mrjapan.fillout.com" report={report} />}
-                    </div>
-                  ))}
-                </>
+                <div className="dg-row">
+                  <div className="dg-main">הטמעה רשמית (@fillout/react)</div>
+                  <span className={`dg-state dg-${res[l.id] ?? 'pending'}`}>{TEXT[res[l.id] ?? 'pending']}</span>
+                  <EmbedProbe id={l.id} link={l} report={report} />
+                </div>
               ) : (
                 <button className="dg-fire" onClick={() => setRun((s) => new Set(s).add(l.id))}>
                   הרצת הבדיקה

@@ -353,13 +353,17 @@ button { font-family: inherit; cursor: pointer; }
 /* שרשרת הגובה: sheet (flex column) → body (flex:1, min-height:0) →
    content → מיכל ההטמעה → iframe. אף שלב אינו מקבל גובה אפס. */
 .eas-body { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; background: #fff; }
-.eas-content { position: absolute; inset: 0; }
-.eas-frame, .fo-frame { width: 100%; height: 100%; border: 0; display: block; }
-/* מיכל ההטמעה הרשמית של Fillout — גובה ורוחב אמיתיים, בלי גלישה אופקית.
-   החבילה מרנדרת iframe בתוך div משלה, ולכן גם השכבה האמצעית מקבלת 100%. */
-.fo-host { width: 100%; height: 100%; min-height: 100%; overflow-x: hidden; }
-.fo-host > div { width: 100%; height: 100%; min-height: 100%; }
-.fo-host iframe { width: 100%; height: 100%; border: 0; display: block; }
+/* מכל הגלילה של התוכן המוטמע. עם dynamicResize הספק קובע ל-iframe
+   גובה לפי גובה הטופס — לפעמים גבוה מהגיליון — ולכן כאן גוללים אנכית
+   במקום לחתוך. עמודת flex כדי שטופס קצר עדיין ימלא את הגיליון. */
+.eas-content { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; }
+.eas-frame, .fo-frame { width: 100%; flex: 1 0 auto; height: 100%; border: 0; display: block; }
+/* מיכל ההטמעה הרשמית של Fillout. flex-grow ממלא גיליון שאינו מלא;
+   flex-shrink:0 מונע כיווץ של טופס ארוך — הוא נגלל, לא נחתך. */
+.fo-host { width: 100%; flex: 1 0 auto; display: flex; flex-direction: column; overflow-x: hidden; }
+.fo-host > div { width: 100%; flex: 1 0 auto; display: flex; flex-direction: column; }
+.fo-host iframe { width: 100%; flex: 1 0 auto; border: 0; display: block; }
 /* מצב ביניים — טעינה, ואחריה הסבר. אין הפניה שקטה החוצה. */
 .eas-state {
   position: absolute; inset: 0; display: flex; flex-direction: column;

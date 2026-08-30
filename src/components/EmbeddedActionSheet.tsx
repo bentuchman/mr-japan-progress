@@ -51,7 +51,9 @@ export function embedVerdict(reach: boolean | null, frame: HTMLIFrameElement | n
 }
 
 export function EmbeddedActionSheet({ title, url, filloutFormId, onClose, onSubmitted }: Props) {
-  const isFillout = isFilloutUrl(url) && !!filloutFormId;
+  const isFillout = isFilloutUrl(url);
+  // כתובת Fillout בלי מזהה טופס — תקלת קונפיג, לא ניסיון הטמעה ישירה
+  const filloutUnconfigured = isFillout && !filloutFormId;
   const [reach, setReach] = useState<boolean | null>(null);
   const [ready, setReady] = useState(false);
   // ה-iframe של ההטמעה נטען. גם אם onInit לא נורה — אסור להשאיר מסך
@@ -67,9 +69,11 @@ export function EmbeddedActionSheet({ title, url, filloutFormId, onClose, onSubm
   // עצמה תקינה). אם ההטמעה מתעכבת, מוצעת יציאה לחלון חדש לצד מצב
   // הטעינה — הצעה, לא הכרזת כישלון.
   // תוכן גנרי אחר: כמו קודם — נגישות + בדיקת ה-frame.
-  const state: EmbedState = isFillout
-    ? ready || frameSeen ? 'loaded' : 'loading'
-    : embedVerdict(reach, frame.current, ready || timedOut);
+  const state: EmbedState = filloutUnconfigured
+    ? 'error'
+    : isFillout
+      ? ready || frameSeen ? 'loaded' : 'loading'
+      : embedVerdict(reach, frame.current, ready || timedOut);
 
   useEffect(() => {
     if (isFillout) return;   // ה-renderer של הספק אינו נשען על בדיקה זו

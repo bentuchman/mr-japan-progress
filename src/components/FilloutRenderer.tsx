@@ -14,6 +14,9 @@ import { FilloutStandardEmbed } from '@fillout/react';
 // מה מגיע מהכתובת: אך ורק מחרוזת השאילתה, שמומרת בשלמותה למפת
 // פרמטרים ומועברת ל-prop הרשמי `parameters`. האפליקציה אינה קוראת אף
 // ערך בודד, אינה גוזרת ממנו מצב עסקי ואינה מציגה אותו ב-UI.
+//
+// dynamicResize — הספק קובע את גובה ה-iframe לפי גובה התוכן. המכל
+// שמעליו גולל אנכית, כך שטופס ארוך אינו נחתך.
 interface Props {
   formId: string;
   url: string;            // הכתובת המלאה, אטומה
@@ -60,6 +63,7 @@ export function FilloutRenderer({ formId, url, onReady, onFrameLoad, onSubmitted
       <FilloutStandardEmbed
         filloutId={formId}
         parameters={parameters}
+        dynamicResize
         onInit={onReady}
         onSubmit={() => onSubmitted?.()}
       />

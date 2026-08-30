@@ -2,7 +2,8 @@ import { FilloutRenderer } from './FilloutRenderer';
 
 // בוחר renderer לפי היעד של הפעולה. כל כתובת שמתארחת על fillout.com
 // (כולל דומיין מותאם כמו mrjapan.fillout.com) מקבלת את ה-renderer של
-// הספק; כל השאר — הטמעת web גנרית.
+// הספק — ורק אותו. אין נפילה ל-iframe גנרי על כתובת Fillout: כתובת
+// השיתוף ללקוח אינה יעד הטמעה. ה-iframe הגנרי נשאר לספקים אחרים.
 export function isFilloutUrl(url: string): boolean {
   try {
     return /(^|\.)fillout\.com$/.test(new URL(url).hostname);
@@ -22,7 +23,10 @@ interface Props {
 }
 
 export function ActionContentRenderer({ url, title, filloutFormId, onReady, onFrameLoad, onSubmitted, webFrameRef }: Props) {
-  if (isFilloutUrl(url) && filloutFormId) {
+  if (isFilloutUrl(url)) {
+    // חסר מזהה טופס = תקלת קונפיג. הגיליון מציג מצב שגיאה קיים
+    // (EmbeddedActionSheet) — לא iframe אל כתובת השיתוף.
+    if (!filloutFormId) return null;
     return (
       <FilloutRenderer
         formId={filloutFormId}
@@ -33,7 +37,7 @@ export function ActionContentRenderer({ url, title, filloutFormId, onReady, onFr
       />
     );
   }
-  // WebRenderer — תוכן חיצוני שאינו של ספק מוכר
+  // WebRenderer — תוכן חיצוני שאינו Fillout
   return (
     <iframe
       ref={webFrameRef}
