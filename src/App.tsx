@@ -148,11 +148,20 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         .map((a) => ({ ...a, status: 'pending' as ActionStatus }));
   const dispNext = dispIndex < stages.length - 1 ? stages[dispIndex + 1] : null;
 
-  // מנתב פעולה לפי ה-openMode שלה בלבד. אין כאן if לפי stageId ואין
-  // יעדים מקודדים — ההתנהגות מגיעה מנתוני הפעולה.
+  // ניתוב לפי ספק התוכן של הפעולה. אין כאן if לפי stageId ואין יעדים
+  // מקודדים — ההתנהגות מגיעה מנתוני הפעולה בלבד. פתיחת פעולה לעולם
+  // אינה מזיזה את המסע: כאן נפתח רק גיליון/מסך, ומצב המסע נשלט בנפרד.
   function handleAction(action: ActionRow) {
+    // webhook של אוטומציה: לא מוטמע, לא נפתח, ולא נקרא. הבדיקה הזו
+    // קודמת לכל שימוש ב-url, כדי שהכתובת לא תיגע בשום מסלול תצוגה
+    // כל עוד לא אומת מה היא בכלל מחזירה.
+    if (action.provider === 'make-webhook' && !action.verifiedDisplayTarget) {
+      setUnlinked(action.title);
+      return;
+    }
     if (action.url) {
-      if (action.openMode === 'fillout' || action.openMode === 'embedded') {
+      // Fillout ו-Zite נפתחים באותו גיליון; ה-renderer נבחר בתוכו
+      if (action.provider === 'fillout' || action.provider === 'zite') {
         setEmbedded({
           id: action.id, title: action.title, url: action.url,
           filloutFormId: action.filloutFormId,
