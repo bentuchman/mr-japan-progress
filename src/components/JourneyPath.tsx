@@ -58,8 +58,6 @@ export function JourneyPath({ stages, currentIndex, previewIndex, demoMode, onSe
       {/* שפת לקוח בלבד — מונחי דמו (בפועל/מציג) חיים רק בפאנל ה-Demo.
           ללא מקרא — הוויזואליה של הפס מדברת בעד עצמה. */}
       <div className="jp-count">
-        שלב {shownIndex + 1} מתוך {stages.length}
-        <span className="jp-sep">·</span>
         <button className="jp-all" onClick={onOpenFull}>כל שלבי המסע ←</button>
       </div>
     </div>
