@@ -131,7 +131,8 @@ export function LinkDiagnostics({ onClose }: { onClose: () => void }) {
   const report = useCallback<Report>((key, v) => {
     setRes((m) => (m[key] === v ? m : { ...m, [key]: v }));
   }, []);
-  const [run, setRun] = useState<string | null>(null);   // בודקים טופס אחד בכל פעם
+  // אוסף — אחרת הרצת טופס שני הייתה מבטלת את הראשון
+  const [run, setRun] = useState<Set<string>>(new Set());
 
   const forms = DEV_LINK_INVENTORY.filter((l) => l.provider === 'fillout');
   const others = DEV_LINK_INVENTORY.filter((l) => l.provider !== 'fillout');
@@ -156,7 +157,7 @@ export function LinkDiagnostics({ onClose }: { onClose: () => void }) {
           {forms.map((l, i) => (
             <div key={l.id} className="dg-block">
               <div className="dg-label">TEST FILLOUT {i + 1} · <span className="dg-host">{safeRef(l.url)}</span></div>
-              {run === l.id ? (
+              {run.has(l.id) ? (
                 <>
                   {(['A', 'B', 'C'] as const).map((k) => (
                     <div key={k} className="dg-row">
@@ -173,7 +174,9 @@ export function LinkDiagnostics({ onClose }: { onClose: () => void }) {
                   ))}
                 </>
               ) : (
-                <button className="dg-fire" onClick={() => setRun(l.id)}>הרצת הבדיקה</button>
+                <button className="dg-fire" onClick={() => setRun((s) => new Set(s).add(l.id))}>
+                  הרצת הבדיקה
+                </button>
               )}
             </div>
           ))}
