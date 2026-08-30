@@ -150,6 +150,9 @@ button { font-family: inherit; cursor: pointer; }
   transition: background .15s, box-shadow .15s, transform .08s;
 }
 .sp-cta:hover { background: var(--accent-deep); }
+/* אותו CTA כעוגן אמיתי — זהה ויזואלית לכפתור */
+a.sp-cta, a.sp-act { text-decoration: none; color: inherit; box-sizing: border-box; }
+a.sp-cta { color: #fff; }
 /* ===== שורות פעולה — הצורה היחידה של פעולת לקוח בשלב =====
    שורה אחת בגובה ~46px: [אייקון] שם הפעולה ......... [CTA ←].
    כל השורה לחיצה; מפריד דק בין שורות; אין כרטיס-בתוך-כרטיס.

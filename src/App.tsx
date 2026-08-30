@@ -163,15 +163,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
       setUnlinked({ title: action.title, awaitingVerification: true });
       return;
     }
-    if (action.url) {
-      // פעולה עם כתובת מאומתת — נפתחת בלשונית חדשה. בדמו זו ההתנהגות
-      // האמינה: היעד מוצג אצל הספק עצמו, בלי תלות במדיניות הטמעה.
-      // הטמעה בתוך האפליקציה נשארת בקוד ותחזור כשהתנהגות ה-frame תאומת.
-      if (action.provider === 'fillout' || action.provider === 'zite'
-          || action.openMode === 'external') {
-        window.open(action.url, '_blank', 'noopener,noreferrer');
-        return;
-      }
+    // פעולה עם כתובת חיצונית מאומתת (fillout/zite) כלל אינה מגיעה לכאן:
+    // ה-CTA שלה מרונדר כעוגן <a href> והדפדפן מנווט בעצמו.
+    if (action.url && action.openMode === 'external') {
+      window.open(action.url, '_blank', 'noopener,noreferrer');
+      return;
     }
     if (action.openMode === 'sheet' && action.opens && action.opens !== 'none') {
       setSheet(action.opens);

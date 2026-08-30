@@ -18,6 +18,14 @@ interface Props {
   onOpenSheet: (kind: SheetKind) => void;   // מסכים משניים (צפייה בנכס שנשלח)
 }
 
+// פעולה עם כתובת חיצונית מאומתת נפתחת דרך עוגן אמיתי — הדפדפן עצמו
+// מנווט (target=_blank), בלי window.open: בסביבות עוינות ל-popup
+// (למשל עמוד Artifact) קריאת JS אינה אמינה, href כן. ה-webhook של
+// Make לעולם אינו עונה לתנאי הזה ולכן נשאר מאחורי ה-handler הבטוח.
+function directHref(a: JourneyAction): string | null {
+  return a.url && (a.provider === 'fillout' || a.provider === 'zite') ? a.url : null;
+}
+
 // שורת פעולה קומפקטית — כל השורה לחיצה, ופיל ה-CTA בקצה הוא ה-affordance
 // (לא חץ בלבד). בלי תיאור מתחת לשם: "בחירת מלונות" מובן מעצמו.
 function ActionRowView({ row, onAction }: { row: ActionRow; onAction: Props['onAction'] }) {
@@ -31,6 +39,17 @@ function ActionRowView({ row, onAction }: { row: ActionRow; onAction: Props['onA
       {row.status === 'completed' && <span className="sp-act-state done">✓ הושלם</span>}
     </>
   );
+  const href = row.status === 'pending' ? directHref(row) : null;
+  if (href) {
+    return (
+      <a
+        className="sp-act actionable" href={href} target="_blank" rel="noopener noreferrer"
+        aria-label={`${row.title} — ${row.cta}`}
+      >
+        {inner}
+      </a>
+    );
+  }
   return row.status === 'pending' ? (
     <button className="sp-act actionable" onClick={() => onAction(row)} aria-label={`${row.title} — ${row.cta}`}>
       {inner}
@@ -82,7 +101,13 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onActi
       {sub.message && <div className="sp-message">{sub.message}</div>}
       {/* פעולה אחת → CTA ראשי · כמה פעולות → שורות · אין פעולה → כלום */}
       {soloCta ? (
-        <button className="sp-cta" onClick={() => onAction(soloCta)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
+        directHref(soloCta) ? (
+          <a className="sp-cta" href={directHref(soloCta)!} target="_blank" rel="noopener noreferrer">
+            {soloCta.ctaFull ?? soloCta.cta} ←
+          </a>
+        ) : (
+          <button className="sp-cta" onClick={() => onAction(soloCta)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
+        )
       ) : rows.length > 0 ? (
         <div className="sp-acts">
           {rows.map((r) => <ActionRowView key={r.id} row={r} onAction={onAction} />)}
