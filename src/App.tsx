@@ -66,8 +66,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const [embedded, setEmbedded] = useState<
     { id: string; title: string; url: string; filloutFormId?: string } | null
   >(null);
-  // פעולה שטרם חובר לה קישור אמיתי (DEV) — שם הפעולה, או null
-  const [unlinked, setUnlinked] = useState<string | null>(null);
+  // DEV — פעולה שאי אפשר לפתוח כרגע. שתי סיבות שונות, והמסך אומר איזו:
+  //   awaitingVerification — יש כתובת, אבל טרם אומת מה היא עושה
+  //   אחרת                 — עדיין אין כתובת אמיתית לפעולה
+  const [unlinked, setUnlinked] =
+    useState<{ title: string; awaitingVerification: boolean } | null>(null);
   const [diagnostics, setDiagnostics] = useState(false);   // DEV בלבד
   // ברירת מחדל בפרוטוטייפ: מצב דמו פעיל — כל התחנות לחיצות מיד.
   // מצב לקוח (עתידי נעול) נבדק ידנית דרך המתג בפאנל ה-Demo.
@@ -156,7 +159,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     // קודמת לכל שימוש ב-url, כדי שהכתובת לא תיגע בשום מסלול תצוגה
     // כל עוד לא אומת מה היא בכלל מחזירה.
     if (action.provider === 'make-webhook' && !action.verifiedDisplayTarget) {
-      setUnlinked(action.title);
+      setUnlinked({ title: action.title, awaitingVerification: true });
       return;
     }
     if (action.url) {
@@ -179,7 +182,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     }
     // openMode null, או מצב שאין לו עדיין כתובת מאומתת — ה-CTA נשאר
     // גלוי אך מציג מצב "טרם חובר" (DEV). לא מוצג תוכן מומצא.
-    setUnlinked(action.title);
+    setUnlinked({ title: action.title, awaitingVerification: false });
   }
 
   // האם בשלב מסוים יש פעולה פתוחה של הלקוח — נגזר מהקונפיג בלבד.
@@ -451,12 +454,16 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         />
       )}
 
-      {/* DEV — פעולה שטרם חובר לה קישור אמיתי. לא מוצג ללקוח בפרודקשן. */}
+      {/* DEV — פעולה שאי אפשר לפתוח כרגע. לא מוצג ללקוח בפרודקשן. */}
       {unlinked && (
-        <BottomSheet title={unlinked} onClose={() => setUnlinked(null)}>
+        <BottomSheet title={unlinked.title} onClose={() => setUnlinked(null)}>
           <div className="sheet-body">
-            <div className="sheet-title">{unlinked}</div>
-            <div className="sheet-dev">DEV · הקישור לפעולה זו טרם חובר</div>
+            <div className="sheet-title">{unlinked.title}</div>
+            <div className="sheet-dev">
+              DEV · {unlinked.awaitingVerification
+                ? 'הקישור חובר, אך אופן הפעולה שלו עדיין דורש אימות'
+                : 'הקישור לפעולה זו טרם חובר'}
+            </div>
             <div className="sheet-desc">
               הקישור האמיתי יגיע מהעמודה המתאימה ב-Monday. עד אז לא מוצג כאן תוכן מדומה.
             </div>
