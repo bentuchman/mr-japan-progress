@@ -164,15 +164,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
       return;
     }
     if (action.url) {
-      // Fillout ו-Zite נפתחים באותו גיליון; ה-renderer נבחר בתוכו
-      if (action.provider === 'fillout' || action.provider === 'zite') {
-        setEmbedded({
-          id: action.id, title: action.title, url: action.url,
-          provider: action.provider, filloutFormId: action.filloutFormId,
-        });
-        return;
-      }
-      if (action.openMode === 'external') {
+      // פעולה עם כתובת מאומתת — נפתחת בלשונית חדשה. בדמו זו ההתנהגות
+      // האמינה: היעד מוצג אצל הספק עצמו, בלי תלות במדיניות הטמעה.
+      // הטמעה בתוך האפליקציה נשארת בקוד ותחזור כשהתנהגות ה-frame תאומת.
+      if (action.provider === 'fillout' || action.provider === 'zite'
+          || action.openMode === 'external') {
         window.open(action.url, '_blank', 'noopener,noreferrer');
         return;
       }
