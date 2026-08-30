@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // גיליון פעולה מוטמע — הדפוס הכללי של "פעולת לקוח נפתחת בתוך מר יפן".
-// לא מיוחד למלונות: אותו רכיב ישמש גם לטופס שינויים, פידבק וכל קישור
-// פעולה אחר. הרכיב מקבל כתובת אטומה ואינו יודע דבר על מבנה ה-URL.
+// הרכיב אינו יודע איזה תוכן הוא מציג (מלונות / טופס שינויים / פידבק):
+// הוא מקבל כותרת וכתובת אטומה, ומרנדר אותן.
 interface Props {
   title: string;
   url: string;
   onClose: () => void;
-  onSubmitted?: () => void;   // אופציונלי: הטופס דיווח על שליחה
+  onSubmitted?: () => void;   // אופציונלי: התוכן המוטמע דיווח על שליחה
 }
 
 // דיווח שליחה מהטופס המוטמע — best-effort. אם ההודעה לא מגיעה, לא קורה
-// כלום: אנחנו לא מדמים סנכרון פרודקשן שלא קיים.
+// כלום: אנחנו לא מדמים סנכרון שאינו קיים.
 function isSubmitMessage(e: MessageEvent): boolean {
   if (!/(^|\.)fillout\.com$/.test(new URL(e.origin).hostname)) return false;
   const d = e.data as unknown;
@@ -21,15 +21,17 @@ function isSubmitMessage(e: MessageEvent): boolean {
 
 export function EmbeddedActionSheet({ title, url, onClose, onSubmitted }: Props) {
   const [loaded, setLoaded] = useState(false);
-  const [blocked, setBlocked] = useState(false);
-  const frame = useRef<HTMLIFrameElement>(null);
+  const [stalled, setStalled] = useState(false);
 
-  // חסימת הטמעה (CSP / X-Frame-Options / מדיניות דפדפן) אינה נעקפת.
-  // הדפדפן אינו מדווח על כישלון של frame חוצה-מקור בצורה אמינה, ולכן:
-  // (1) אם onload לא נורה כלל תוך 6 שניות — מציגים הסבר בתוך הגיליון;
-  // (2) בכל מקרה יש קישור גיבוי גלוי בכותרת, ביוזמת הלקוח בלבד.
+  // הדפדפן אינו חושף אם frame חוצה-מקור נחסם (X-Frame-Options /
+  // frame-ancestors) או פשוט נכשל: onload נורה גם על עמוד שגיאה, ואי
+  // אפשר לקרוא את תוכנו. לכן לא מנחשים:
+  //   • כל עוד לא נורה onload — מצב טעינה, ואחרי 8 שניות הסבר.
+  //   • תמיד יש שורת גיבוי גלויה בתחתית הגיליון, ביוזמת הלקוח בלבד.
+  // כך הגיליון לעולם אינו נשאר מסך לבן בלי הסבר. אין עקיפת אבטחה.
   useEffect(() => {
-    const t = window.setTimeout(() => setBlocked((b) => (loaded ? b : true)), 6000);
+    if (loaded) return;
+    const t = window.setTimeout(() => setStalled(true), 8000);
     return () => window.clearTimeout(t);
   }, [loaded]);
 
@@ -45,7 +47,6 @@ export function EmbeddedActionSheet({ title, url, onClose, onSubmitted }: Props)
     return () => window.removeEventListener('message', onMessage);
   }, [onSubmitted]);
 
-  // Esc סוגר; הרקע מעומעם ונשאר במקומו מאחור
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -60,34 +61,39 @@ export function EmbeddedActionSheet({ title, url, onClose, onSubmitted }: Props)
         <div className="eas-grip" aria-hidden />
         <div className="eas-head">
           <span className="eas-title">{title}</span>
-          <span className="eas-head-end">
-            {/* גיבוי ביוזמת הלקוח — אם הטופס אינו נטען בדפדפן שלו */}
-            <a className="eas-out" href={url} target="_blank" rel="noopener noreferrer">
-              פתיחה בחלון חדש ↗
-            </a>
-            <button className="eas-close" onClick={onClose} aria-label="סגירה">✕</button>
-          </span>
+          <button className="eas-close" onClick={onClose} aria-label="סגירה">✕</button>
         </div>
+
         <div className="eas-body">
-          {!loaded && !blocked && <div className="eas-state">טוען…</div>}
-          {blocked && (
-            <div className="eas-state eas-blocked">
-              <b>הטופס לא נטען כאן</b>
-              <span>ייתכן שהאתר של הטופס אינו מתיר הטמעה בדפדפן הזה.</span>
-              <a className="eas-fallback" href={url} target="_blank" rel="noopener noreferrer">
-                פתיחת הטופס בחלון חדש ←
-              </a>
-            </div>
-          )}
           <iframe
-            ref={frame}
             className={`eas-frame${loaded ? ' on' : ''}`}
             src={url}
             title={title}
-            onLoad={() => { setLoaded(true); setBlocked(false); }}
+            onLoad={() => setLoaded(true)}
             allow="clipboard-write; fullscreen"
             referrerPolicy="no-referrer-when-downgrade"
           />
+          {!loaded && (
+            <div className="eas-state">
+              {stalled ? (
+                <>
+                  <b>הטופס מתעכב בטעינה</b>
+                  <span>אפשר לפתוח אותו בחלון נפרד ולהמשיך משם.</span>
+                </>
+              ) : (
+                'טוען…'
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* שורת גיבוי קבועה — תמיד גלויה, לעולם לא הפניה אוטומטית.
+            מבטיחה שגם אם התוכן אינו נטען, אין מסך לבן ללא מוצא. */}
+        <div className="eas-foot">
+          <span>לא רואים את הטופס?</span>
+          <a className="eas-out" href={url} target="_blank" rel="noopener noreferrer">
+            פתיחה בחלון חדש ↗
+          </a>
         </div>
       </div>
     </div>

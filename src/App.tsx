@@ -9,12 +9,12 @@ import {
   PackageId,
   SCENARIO,
   SheetKind,
-  StageAction,
   SubState,
   TimeToTripScenario,
-  activeSelectionActions,
+  actionById,
   relevantStages,
   relevantSubStates,
+  stageActions,
 } from './journeyConfig';
 import { JourneyPath } from './components/JourneyPath';
 import { ActionRow, CurrentStagePanel } from './components/CurrentStagePanel';
@@ -109,7 +109,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const [sheet, setSheet] = useState<SheetOpen>('none');
   // פעולה שנפתחת מוטמעת בתוך האפליקציה (כתובת אטומה מהקונפיג).
   // מצב תצוגה בלבד — אינו נוגע ב-currentStage/previewStage ובהתקדמות.
-  const [embedded, setEmbedded] = useState<{ title: string; url: string } | null>(null);
+  const [embedded, setEmbedded] = useState<{ id: string; title: string; url: string } | null>(null);
   // ברירת מחדל בפרוטוטייפ: מצב דמו פעיל — כל התחנות לחיצות מיד.
   // מצב לקוח (עתידי נעול) נבדק ידנית דרך המתג בפאנל ה-Demo.
   const [demoMode, setDemoMode] = useState(true);
@@ -165,7 +165,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     hotels: hotelTaskStatus,
     attractions: attractionsTaskStatus,
   };
-  const selectionRows: ActionRow[] = activeSelectionActions(attractionsAvailable).map((a) => ({
+  const selectionRows: ActionRow[] = stageActions('selections', attractionsAvailable).map((a) => ({
     ...a,
     status: selectionStatus[a.id] ?? 'pending',
   }));
@@ -189,8 +189,30 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const selectionsView =
     dispStage.id === 'selections' && !['all-ready'].includes(subSel['selections'] ?? '');
   const dispSub = selectionsView ? selectionsSub : configSub;
-  const dispActions = selectionsView ? selectionRows : undefined;
+  // פעולות השלב המוצג — מזהים מהקונפיג, הגדרות מהרישום המרכזי.
+  // שלב יכול להחזיק אפס, אחת או כמה פעולות; אין כאן שום ידע על שלב מסוים.
+  const dispActions: ActionRow[] = selectionsView
+    ? selectionRows
+    : (dispSub.actions ?? [])
+        .map(actionById)
+        .filter((a): a is NonNullable<typeof a> => !!a)
+        .map((a) => ({ ...a, status: 'pending' as ActionStatus }));
   const dispNext = dispIndex < stages.length - 1 ? stages[dispIndex + 1] : null;
+
+  // מנתב פעולה לפי ה-openMode שלה בלבד. אין כאן if לפי stageId ואין
+  // יעדים מקודדים — ההתנהגות מגיעה מנתוני הפעולה.
+  function handleAction(action: ActionRow) {
+    if (action.openMode === 'embedded' && action.url) {
+      setEmbedded({ id: action.id, title: action.title, url: action.url });
+      return;
+    }
+    if (action.openMode === 'external' && action.url) {
+      window.open(action.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // 'sheet', או מצב שטרם סופקה לו כתובת — המסך הפנימי הקיים
+    if (action.opens && action.opens !== 'none') setSheet(action.opens);
+  }
 
   // האם בשלב מסוים יש פעולה פתוחה של הלקוח — נגזר מהקונפיג בלבד.
   // משמש את "כל שלבי המסע" כדי לסמן את השלב הנוכחי כדורש פעולה.
@@ -453,11 +475,8 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
             stage={dispStage}
             sub={dispSub}
             actions={dispActions}
-            onCta={(opens, action) => {
-              // פעולה עם קישור נפתחת בתוך האפליקציה; אחרת — ה-Sheet הקיים
-              if (action?.url) setEmbedded({ title: action.title, url: action.url });
-              else if (opens !== 'none') setSheet(opens);
-            }}
+            onAction={handleAction}
+            onOpenSheet={(kind) => { if (kind !== 'none') setSheet(kind); }}
           />
         )}
       </section>
@@ -646,7 +665,12 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
           title={embedded.title}
           url={embedded.url}
           onClose={() => setEmbedded(null)}
-          onSubmitted={() => { markHotelsSent(); setEmbedded(null); }}
+          onSubmitted={() => {
+            // דיווח שליחה מהתוכן המוטמע — רק לפעולת המלונות יש כרגע
+            // מצב לקוח מנוהל. אינו מזיז את המסע.
+            if (embedded.id === 'hotels') markHotelsSent();
+            setEmbedded(null);
+          }}
         />
       )}
 

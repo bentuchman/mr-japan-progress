@@ -358,9 +358,6 @@ button { font-family: inherit; cursor: pointer; }
   padding: 8px 14px 9px; border-bottom: 1px solid var(--border-soft);
 }
 .eas-title { font-size: 15px; font-weight: 700; }
-.eas-head-end { display: inline-flex; align-items: center; gap: 10px; }
-.eas-out { font-size: 11.5px; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; }
-.eas-out:hover { color: var(--accent-deep); }
 .eas-close { border: none; background: none; color: var(--muted); font-size: 16px; padding: 4px 6px; line-height: 1; }
 .eas-close:hover { color: var(--ink); }
 .eas-body { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; }
@@ -369,20 +366,21 @@ button { font-family: inherit; cursor: pointer; }
   opacity: 0; transition: opacity .2s;
 }
 .eas-frame.on { opacity: 1; }
-/* מצבי ביניים — טעינה או חסימת הטמעה. אין הפניה שקטה החוצה. */
+/* מצב ביניים — טעינה, ואחריה הסבר. אין הפניה שקטה החוצה. */
 .eas-state {
   position: absolute; inset: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 7px; padding: 24px;
+  align-items: center; justify-content: center; gap: 6px; padding: 24px;
   text-align: center; font-size: 13px; color: var(--muted); background: #fff;
 }
-.eas-blocked b { font-size: 14.5px; color: var(--ink); }
-.eas-fallback {
-  margin-top: 6px; display: inline-flex; align-items: center; gap: 6px;
-  background: var(--accent); color: #fff; text-decoration: none;
-  font-size: 13.5px; font-weight: 700; border-radius: 999px; padding: 10px 18px;
-  box-shadow: 0 2px 8px rgba(238,111,33,.24);
+.eas-state b { font-size: 14.5px; color: var(--ink); }
+/* שורת גיבוי קבועה בתחתית הגיליון */
+.eas-foot {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 9px 14px; border-top: 1px solid var(--border-soft);
+  font-size: 12px; color: var(--muted); background: #fdfcfa;
 }
-.eas-fallback:hover { background: var(--accent-deep); }
+.eas-out { font-weight: 700; color: var(--accent-deep); text-decoration: none; white-space: nowrap; }
+.eas-out:hover { text-decoration: underline; }
 /* דסקטופ: מודאל ממורכז בגודל נוח, באותו רכיב */
 @media (min-width: 681px) {
   .eas-overlay { align-items: center; padding: 24px; }

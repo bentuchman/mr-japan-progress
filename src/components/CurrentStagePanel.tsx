@@ -1,25 +1,26 @@
-import { ActionStatus, OWNERSHIP_PILL, SheetKind, Stage, StageAction, SubState } from '../journeyConfig';
+import { ActionStatus, JourneyAction, OWNERSHIP_PILL, SheetKind, Stage, SubState } from '../journeyConfig';
 
 // פעולת לקוח עם המצב שלה. שלושה מצבים שאסור לבלבל ביניהם:
 //   pending        — הלקוח עוד צריך לפעול
 //   waitingForTeam — הלקוח ביצע את חלקו ("✓ נשלח"); זו אינה התקדמות במסע
 //   completed      — התהליך הפנימי עודכן, והמסע מציג את המצב החדש
-export interface ActionRow extends StageAction {
+export interface ActionRow extends JourneyAction {
   status: ActionStatus;
 }
 
 interface Props {
   stage: Stage;
   sub: SubState;
-  actions?: ActionRow[];        // פעולות עם מצב חי (גוברות על sub.actions)
+  actions: ActionRow[];         // פעולות השלב עם מצב חי (יכול להיות ריק)
   summaryOverride?: string[];   // סיכום דינמי (למשל ספירת הבחירות שנשלחו בפועל)
-  // מקבל את הפעולה כולה: אם יש לה url — App פותח אותה מוטמעת באפליקציה
-  onCta: (opens: SheetKind, action?: StageAction) => void;
+  // הרכיב אינו יודע לאן פעולה מובילה — הוא מוסר אותה כמות שהיא
+  onAction: (action: ActionRow) => void;
+  onOpenSheet: (kind: SheetKind) => void;   // מסכים משניים (צפייה בנכס שנשלח)
 }
 
 // שורת פעולה קומפקטית — כל השורה לחיצה, ופיל ה-CTA בקצה הוא ה-affordance
 // (לא חץ בלבד). בלי תיאור מתחת לשם: "בחירת מלונות" מובן מעצמו.
-function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }) {
+function ActionRowView({ row, onAction }: { row: ActionRow; onAction: Props['onAction'] }) {
   const inner = (
     <>
       <span className="sp-act-ic" aria-hidden>{row.icon}</span>
@@ -31,7 +32,7 @@ function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }
     </>
   );
   return row.status === 'pending' ? (
-    <button className="sp-act actionable" onClick={() => onCta(row.opens, row)} aria-label={`${row.title} — ${row.cta}`}>
+    <button className="sp-act actionable" onClick={() => onAction(row)} aria-label={`${row.title} — ${row.cta}`}>
       {inner}
     </button>
   ) : (
@@ -42,9 +43,8 @@ function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }
 // תוכן השלב המוצג בכרטיס — היררכיה אחת בכל שלב:
 // שם השלב ← סטטוס ("נדרשת פעולה" / בעלות) ← משפט תומך אם באמת צריך ←
 // הפעולה. פעולה אחת = CTA ראשי; כמה פעולות במקביל = שורות קומפקטיות.
-export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta }: Props) {
-  const rows: ActionRow[] =
-    actions ?? (sub.actions ?? []).map((a) => ({ ...a, status: 'pending' as ActionStatus }));
+export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onAction, onOpenSheet }: Props) {
+  const rows = actions;
   const summary = summaryOverride ?? sub.summary;
   const pending = rows.filter((r) => r.status === 'pending');
   // "נדרשת פעולה" — סטטוס שמחליף את קופי הבעלות כשהכדור אצל הלקוח
@@ -82,10 +82,10 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
       {sub.message && <div className="sp-message">{sub.message}</div>}
       {/* פעולה אחת → CTA ראשי · כמה פעולות → שורות · אין פעולה → כלום */}
       {soloCta ? (
-        <button className="sp-cta" onClick={() => onCta(soloCta.opens, soloCta)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
+        <button className="sp-cta" onClick={() => onAction(soloCta)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
       ) : rows.length > 0 ? (
         <div className="sp-acts">
-          {rows.map((r) => <ActionRowView key={r.id} row={r} onCta={onCta} />)}
+          {rows.map((r) => <ActionRowView key={r.id} row={r} onAction={onAction} />)}
         </div>
       ) : null}
       {sub.confirms?.map((c) => (
@@ -98,7 +98,7 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
       )}
       {sub.detail && <div className="sp-detail">{sub.detail}</div>}
       {sub.viewLabel && (
-        <button className="sp-view" onClick={() => sub.viewOpens && onCta(sub.viewOpens)}>
+        <button className="sp-view" onClick={() => sub.viewOpens && onOpenSheet(sub.viewOpens)}>
           {sub.viewLabel} ←
         </button>
       )}

@@ -37,14 +37,25 @@ export type TimeToTripScenario = 'moreThanThreeMonths' | 'lessThanThreeMonths';
 // ל-waitingForTeam בלבד; ההשלמה (completed) מגיעה מ-Monday.
 export type ActionStatus = 'pending' | 'waitingForTeam' | 'completed';
 
-export interface StageAction {
+// איך הפעולה נפתחת:
+//   embedded — תוכן חיצוני בתוך האפליקציה (EmbeddedActionSheet)
+//   external — פעולה שקורית באמת מחוץ למר יפן (למשל פגישת Zoom)
+//   sheet    — מסך פנימי קיים של המוצר (BottomSheet)
+export type OpenMode = 'embedded' | 'external' | 'sheet';
+
+export interface JourneyAction {
   id: string;
+  stageId: string;              // לאיזה שלב במסע הפעולה שייכת
   icon: string;
   title: string;                // שם הפעולה — מוצג כשיש יותר מפעולה אחת
   cta: string;                  // תווית קצרה לשורת פעולה ("לבחירה")
   ctaFull?: string;             // תווית ל-CTA ראשי (פעולה בודדת) — ברירת מחדל: cta
-  opens: SheetKind;             // מה ה-CTA פותח כשאין url
-  url?: string;                 // כתובת פעולה אטומה — נפתחת מוטמעת בתוך האפליקציה
+  openMode: OpenMode;
+  // כתובת מלאה ואטומה כפי שהיא מגיעה מ-Monday. null = טרם סופקה כתובת
+  // אמיתית לפעולה הזו (לא ממציאים קישורים). ה-UI אינו מפרש אותה.
+  url: string | null;
+  opens?: SheetKind;            // ל-openMode 'sheet' — איזה מסך פנימי נפתח
+  requiresPaymentWindow?: boolean;  // פעילה רק כשחלון תשלום האטרקציות פתוח
 }
 
 export interface SubState {
@@ -56,7 +67,7 @@ export interface SubState {
   message?: string;             // בשפת לקוח — קצר
   dateLine?: string;            // שורת מועד שמוצגת בבית (📅)
   detail?: string;
-  actions?: StageAction[];      // פעולות הלקוח בשלב (0 / 1 / רבות)
+  actions?: string[];           // מזהי פעולות מ-JOURNEY_ACTIONS (0 / 1 / רבות)
   confirms?: string[];          // אישורי "התקבל ✓" (ירוק — רק כאן)
   summary?: string[];           // סיכום קומפקטי אחרי שליחה (🏨 3 מלונות...)
   viewLabel?: string;           // כפתור משני לצפייה בנכס שנשלח
@@ -131,9 +142,7 @@ export const STAGES: Stage[] = [
         demoLabel: 'ממתין לתשלום',
         ownership: 'client',
         message: 'התוכנית מוכנה — ממשיכים לתשלום.',
-        actions: [
-          { id: 'service-payment', icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום', opens: 'payment' },
-        ],
+        actions: ['service-payment'],
       },
       {
         id: 'paid',
@@ -157,9 +166,7 @@ export const STAGES: Stage[] = [
         demoLabel: 'נקבעה',
         ownership: 'both',
         dateLine: 'יום ג׳, 12/08 · 19:00',
-        actions: [
-          { id: 'meeting', icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', ctaFull: 'לפרטי הפגישה', opens: 'meeting' },
-        ],
+        actions: ['meeting'],
       },
       {
         id: 'upcoming',
@@ -183,9 +190,7 @@ export const STAGES: Stage[] = [
         ownership: 'client',
         message: 'עכשיו אפשר לדייק את התוכנית.',
         dateLine: 'פתוח עד 18/08',
-        actions: [
-          { id: 'changes-form', icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס', opens: 'form' },
-        ],
+        actions: ['changes-form'],
       },
       {
         id: 'submitted',
@@ -212,9 +217,9 @@ export const STAGES: Stage[] = [
     ],
   },
   {
-    // שלב אדפטיבי לפי זמן-לטיול. הפעולות עצמן מוגדרות ב-SELECTIONS_ACTIONS
-    // (למטה) ונגזרות דרך activeSelectionActions() לפי חלון תשלום האטרקציות —
-    // אין תנאים מקודדים ב-JSX. כשהחלון פתוח App מרחיב את שם השלב.
+    // שלב אדפטיבי לפי זמן-לטיול. שתי הפעולות מוגדרות ב-JOURNEY_ACTIONS
+    // ונגזרות דרך stageActions('selections', paymentWindowOpen) — אין
+    // תנאים מקודדים ב-JSX. כשהחלון פתוח App מרחיב את שם השלב.
     id: 'selections',
     name: 'בחירת מלונות',
     icon: '🏨',
@@ -223,7 +228,7 @@ export const STAGES: Stage[] = [
     historyOpens: 'selections-view',
     historyText: 'הפעולות הושלמו והועברו לטיפול.',
     subStates: [
-      // הפעולות הפעילות והשלמתן נגזרות ב-App מ-activeSelectionActions()
+      // הפעולות הפעילות והשלמתן נגזרות ב-App מ-stageActions()
       { id: 'open', demoLabel: 'פתוח לפעולות', ownership: 'client' },
       {
         id: 'done',
@@ -313,9 +318,7 @@ export const STAGES: Stage[] = [
         demoLabel: 'פתוח למילוי',
         ownership: 'client',
         message: 'נשמח לשמוע את חוות הדעת שלכם על הטיול.',
-        actions: [
-          { id: 'feedback', icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', ctaFull: 'למילוי המשוב', opens: 'feedback' },
-        ],
+        actions: ['feedback'],
       },
       {
         id: 'submitted',
@@ -367,28 +370,63 @@ export const DEMO_ACTION_LINKS = {
     'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%A9%D7%92%D7%99%D7%AA%20%D7%A7%D7%99%D7%A0%D7%9F-%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%20%20(%D7%94%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%D7%99%D7%9D)&clientAirtableID=recPNgSfcIpGwEROL&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=08/12/2026%20-%2011/12/2026&dest2=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date2=11/12/2026%20-%2012/12/2026&dest3=%D7%A7%D7%99%D7%95%D7%98%D7%95&date3=12/12/2026%20-%2015/12/2026&dest4=%D7%90%D7%95%D7%A1%D7%A7%D7%94&date4=15/12/2026%20-%2017/12/2026&dest5=%D7%98%D7%95%D7%A7%D7%99%D7%95&date5=17/12/2026%20-%2020/12/2026&dest1days=3&dest2days=1&dest3days=3&dest4days=2&dest5days=3',
 } as const;
 
-// ===== הפעולות של השלב האדפטיבי — מקור האמת =====
-// hotels פעיל תמיד; attractions דורש שחלון תשלום האטרקציות יהיה פתוח.
-// מקור החלון הוא מצב עסקי (Monday / תאריכי הטיול), לא חישוב תאריך בפרונט —
-// בפרוטוטייפ הוא מגיע מדגל התרחיש. כשהחלון סגור הפעולה פשוט אינה קיימת:
-// אין שורה מושבתת, אין "בקרוב", ואין מציין מקום.
-export const SELECTIONS_ACTIONS: (StageAction & { requiresPaymentWindow?: boolean })[] = [
+// ============================================================
+// JOURNEY_ACTIONS — הרישום המרכזי של פעולות הלקוח במסע.
+// מקור אמת אחד: שלב → 0 / 1 / כמה פעולות, ולכל פעולה יעד משלה.
+// אין לוגיקת פעולה מפוזרת בקומפוננטות ואין יעדים מקודדים ב-JSX.
+//
+// בפרודקשן הרשימה תגיע מהבקאנד (Monday) באותו מבנה בדיוק:
+//   { title, cta, openMode, url } — הפרונט לא צריך לדעת איך נבנה ה-URL.
+// ============================================================
+export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
-    id: 'hotels', icon: '🏨', title: 'בחירת מלונות',
-    cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
-    opens: 'selections-form', url: DEMO_ACTION_LINKS.hotelSelection,
+    id: 'service-payment', stageId: 'service-payment',
+    icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום',
+    // כשתסופק כתובת תשלום אמיתית — openMode יעבור ל-embedded/external
+    openMode: 'sheet', opens: 'payment', url: null,
   },
   {
-    id: 'attractions', icon: '🎟️', title: 'תשלום אטרקציות',
-    cta: 'לתשלום', opens: 'attractions-pay', requiresPaymentWindow: true,
+    id: 'meeting', stageId: 'meeting',
+    icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', ctaFull: 'לפרטי הפגישה',
+    // הפגישה עצמה מתקיימת מחוץ למר יפן (Zoom) ולא מוטמעת. כשתסופק
+    // כתובת פגישה אמיתית — openMode: 'external' עם ה-url שלה.
+    openMode: 'sheet', opens: 'meeting', url: null,
+  },
+  {
+    id: 'changes-form', stageId: 'changes-form',
+    icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס',
+    openMode: 'sheet', opens: 'form', url: null,   // מוכן ל-embedded עם URL אמיתי
+  },
+  {
+    id: 'hotels', stageId: 'selections',
+    icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
+    openMode: 'embedded', url: DEMO_ACTION_LINKS.hotelSelection, opens: 'selections-form',
+  },
+  {
+    id: 'attractions', stageId: 'selections',
+    icon: '🎟️', title: 'תשלום אטרקציות', cta: 'לתשלום',
+    openMode: 'sheet', opens: 'attractions-pay', url: null,
+    requiresPaymentWindow: true,
+  },
+  {
+    id: 'feedback', stageId: 'feedback',
+    icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', ctaFull: 'למילוי המשוב',
+    openMode: 'sheet', opens: 'feedback', url: null,   // מוכן ל-embedded
   },
 ];
 
-// הפעולות הנדרשות כרגע. הרשימה נגזרת מחדש בכל רינדור — כך שפעולה
-// שנפתחת מאוחר יותר (בכניסה לחלון 3 החודשים) מחזירה את השלב למצב פעיל
-// גם אם הפעולה הראשונה כבר הושלמה.
-export function activeSelectionActions(paymentWindowOpen: boolean): StageAction[] {
-  return SELECTIONS_ACTIONS.filter((a) => !a.requiresPaymentWindow || paymentWindowOpen);
+const ACTIONS_BY_ID = new Map(JOURNEY_ACTIONS.map((a) => [a.id, a]));
+
+export function actionById(id: string): JourneyAction | undefined {
+  return ACTIONS_BY_ID.get(id);
+}
+
+// פעולות השלב. paymentWindowOpen מגיע ממצב עסקי (Monday / תאריכי הטיול),
+// לא מחישוב תאריך בפרונט. כשהחלון סגור הפעולה פשוט אינה קיימת.
+export function stageActions(stageId: string, paymentWindowOpen = true): JourneyAction[] {
+  return JOURNEY_ACTIONS.filter(
+    (a) => a.stageId === stageId && (!a.requiresPaymentWindow || paymentWindowOpen),
+  );
 }
 
 // תשלום אטרקציות — פעולה מסומלצת בדמו; מנגנון התשלום בפועל טרם אושר
