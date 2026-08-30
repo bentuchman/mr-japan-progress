@@ -100,7 +100,7 @@ export const PACKAGES: { id: PackageId; label: string }[] = [
 // תווית קומפקטית — צ'יפ, לא משפט. ההרחבה חיה ב-message של תת-המצב.
 export const OWNERSHIP_PILL: Record<Ownership, string> = {
   client: 'אתם',
-  team: 'צוות מר יפן',
+  team: 'בטיפול צוות מר יפן',
   both: 'ביחד עם צוות מר יפן',
   none: 'אין צורך בפעולה',
 };
@@ -260,7 +260,7 @@ export const STAGES: Stage[] = [
         id: 'working',
         demoLabel: 'בהזמנה',
         ownership: 'team',
-        pill: 'צוות מר יפן · הזמנות',
+        pill: 'בטיפול צוות מר יפן · הזמנות',
         message: 'אנחנו מטפלים בהזמנת המלונות שבחרתם.',
       },
     ],
