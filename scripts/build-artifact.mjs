@@ -9,7 +9,7 @@ const bodyStart = src.indexOf('<body>') + 6;
 const body = src.slice(bodyStart, src.indexOf('</body>'));
 
 // meta charset/viewport מסופקים ע"י מעטפת ה-Artifact; הכותרת שלנו נשארת
-const inner = head.replace(/\s*<meta[^>]*>/g, '');
+const inner = head.replace(/\s*<meta[^>]*>/g, '').replace(/\s*<title>[\s\S]*?<\/title>/g, '');
 
 const out = [
   '<title>מר יפן — Progress</title>',
