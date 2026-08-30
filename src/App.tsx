@@ -18,7 +18,7 @@ import { HistoricalStagePanel } from './components/HistoricalStagePanel';
 import { JourneyFullView } from './components/JourneyFullView';
 import { BottomSheet } from './components/BottomSheet';
 import { EmbeddedActionSheet } from './components/EmbeddedActionSheet';
-import { EmbedDiagnostics } from './components/EmbedDiagnostics';
+import { LinkDiagnostics } from './components/LinkDiagnostics';
 import { CardDecor } from './components/CardDecor';
 import { DemoControls } from './components/DemoControls';
 
@@ -472,7 +472,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         />
       )}
 
-      {diagnostics && <EmbedDiagnostics onClose={() => setDiagnostics(false)} />}
+      {diagnostics && <LinkDiagnostics onClose={() => setDiagnostics(false)} />}
 
       <DemoControls
         pkg={pkg}

@@ -80,7 +80,7 @@ export function DemoControls(props: Props) {
             📱 השוואת תרחישים
           </button>
           <button className="dbtn demo-mobile-btn" onClick={props.onDiagnostics}>
-            🔎 בדיקת הטמעה של הקישורים
+            🔎 בדיקת הקישורים האמיתיים
           </button>
         </>
       )}
