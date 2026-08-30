@@ -9,6 +9,7 @@ import {
   PackageId,
   SCENARIO,
   SheetKind,
+  StageAction,
   SubState,
   TimeToTripScenario,
   activeSelectionActions,
@@ -20,6 +21,7 @@ import { ActionRow, CurrentStagePanel } from './components/CurrentStagePanel';
 import { HistoricalStagePanel } from './components/HistoricalStagePanel';
 import { JourneyFullView } from './components/JourneyFullView';
 import { BottomSheet } from './components/BottomSheet';
+import { EmbeddedActionSheet } from './components/EmbeddedActionSheet';
 import { CardDecor } from './components/CardDecor';
 import { DemoControls } from './components/DemoControls';
 
@@ -105,6 +107,9 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const [previewStageId, setPreviewStageId] = useState<string | null>(null);
   const [subSel, setSubSel] = useState<Record<string, string>>({});
   const [sheet, setSheet] = useState<SheetOpen>('none');
+  // פעולה שנפתחת מוטמעת בתוך האפליקציה (כתובת אטומה מהקונפיג).
+  // מצב תצוגה בלבד — אינו נוגע ב-currentStage/previewStage ובהתקדמות.
+  const [embedded, setEmbedded] = useState<{ title: string; url: string } | null>(null);
   // ברירת מחדל בפרוטוטייפ: מצב דמו פעיל — כל התחנות לחיצות מיד.
   // מצב לקוח (עתידי נעול) נבדק ידנית דרך המתג בפאנל ה-Demo.
   const [demoMode, setDemoMode] = useState(true);
@@ -348,6 +353,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // השלמה סופית: המשימה עוברת ל"ממתינה לצוות" עד V ב-Monday.
   function submitSelections() {
     setSubmittedSel(chosen);
+    markHotelsSent();
+  }
+  // הלקוח סיים את חלקו. זו אינה התקדמות במסע: המשימה עוברת ל"נשלח"
+  // בלבד, וההשלמה תגיע מהתהליך הפנימי. משמש גם את הטופס המוטמע.
+  function markHotelsSent() {
     setHotelTaskStatus('waitingForTeam');
     setSheet('none');
   }
@@ -443,7 +453,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
             stage={dispStage}
             sub={dispSub}
             actions={dispActions}
-            onCta={(opens) => { if (opens !== 'none') setSheet(opens); }}
+            onCta={(opens, action) => {
+              // פעולה עם קישור נפתחת בתוך האפליקציה; אחרת — ה-Sheet הקיים
+              if (action?.url) setEmbedded({ title: action.title, url: action.url });
+              else if (opens !== 'none') setSheet(opens);
+            }}
           />
         )}
       </section>
@@ -626,6 +640,16 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         />
       )}
 
+      {/* פעולת לקוח שנפתחת בתוך מר יפן — הלקוח לא עוזב את האפליקציה */}
+      {embedded && (
+        <EmbeddedActionSheet
+          title={embedded.title}
+          url={embedded.url}
+          onClose={() => setEmbedded(null)}
+          onSubmitted={() => { markHotelsSent(); setEmbedded(null); }}
+        />
+      )}
+
       <DemoControls
         pkg={pkg}
         stages={stages}
@@ -643,6 +667,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         hotelTaskStatus={hotelTaskStatus}
         attractionsTaskStatus={attractionsTaskStatus}
         attractionsAvailable={attractionsAvailable}
+        onHotelsSent={markHotelsSent}
         onMondayV={simulateMondayV}
         onTimeScenario={handleTimeScenario}
         onOpenWindow={() => setWindowOpened(true)}

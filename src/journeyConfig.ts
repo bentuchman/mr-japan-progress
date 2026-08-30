@@ -43,7 +43,8 @@ export interface StageAction {
   title: string;                // שם הפעולה — מוצג כשיש יותר מפעולה אחת
   cta: string;                  // תווית קצרה לשורת פעולה ("לבחירה")
   ctaFull?: string;             // תווית ל-CTA ראשי (פעולה בודדת) — ברירת מחדל: cta
-  opens: SheetKind;             // מה ה-CTA פותח
+  opens: SheetKind;             // מה ה-CTA פותח כשאין url
+  url?: string;                 // כתובת פעולה אטומה — נפתחת מוטמעת בתוך האפליקציה
 }
 
 export interface SubState {
@@ -357,13 +358,26 @@ export const SELECTIONS_MOCK = {
   ],
 };
 
+// ===== קישורי פעולה (נתוני דמו) =====
+// הקישור המלא כפי שהוא קיים ב-Monday, כמות שהוא — כתובת פעולה *אטומה*.
+// ה-UI אינו מפרש אותה: לא מפרק פרמטרים, לא מחלץ מזהים, לא בונה כתובת
+// ולא מנהל מזהה לקוח. בפרודקשן הקישור יגיע מהבקאנד לפי הלקוח המחובר.
+export const DEMO_ACTION_LINKS = {
+  hotelSelection:
+    'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%A9%D7%92%D7%99%D7%AA%20%D7%A7%D7%99%D7%A0%D7%9F-%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%20%20(%D7%94%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%D7%99%D7%9D)&clientAirtableID=recPNgSfcIpGwEROL&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=08/12/2026%20-%2011/12/2026&dest2=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date2=11/12/2026%20-%2012/12/2026&dest3=%D7%A7%D7%99%D7%95%D7%98%D7%95&date3=12/12/2026%20-%2015/12/2026&dest4=%D7%90%D7%95%D7%A1%D7%A7%D7%94&date4=15/12/2026%20-%2017/12/2026&dest5=%D7%98%D7%95%D7%A7%D7%99%D7%95&date5=17/12/2026%20-%2020/12/2026&dest1days=3&dest2days=1&dest3days=3&dest4days=2&dest5days=3',
+} as const;
+
 // ===== הפעולות של השלב האדפטיבי — מקור האמת =====
 // hotels פעיל תמיד; attractions דורש שחלון תשלום האטרקציות יהיה פתוח.
 // מקור החלון הוא מצב עסקי (Monday / תאריכי הטיול), לא חישוב תאריך בפרונט —
 // בפרוטוטייפ הוא מגיע מדגל התרחיש. כשהחלון סגור הפעולה פשוט אינה קיימת:
 // אין שורה מושבתת, אין "בקרוב", ואין מציין מקום.
 export const SELECTIONS_ACTIONS: (StageAction & { requiresPaymentWindow?: boolean })[] = [
-  { id: 'hotels', icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות', opens: 'selections-form' },
+  {
+    id: 'hotels', icon: '🏨', title: 'בחירת מלונות',
+    cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
+    opens: 'selections-form', url: DEMO_ACTION_LINKS.hotelSelection,
+  },
   {
     id: 'attractions', icon: '🎟️', title: 'תשלום אטרקציות',
     cta: 'לתשלום', opens: 'attractions-pay', requiresPaymentWindow: true,

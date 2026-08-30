@@ -13,7 +13,8 @@ interface Props {
   sub: SubState;
   actions?: ActionRow[];        // פעולות עם מצב חי (גוברות על sub.actions)
   summaryOverride?: string[];   // סיכום דינמי (למשל ספירת הבחירות שנשלחו בפועל)
-  onCta: (opens: SheetKind) => void;
+  // מקבל את הפעולה כולה: אם יש לה url — App פותח אותה מוטמעת באפליקציה
+  onCta: (opens: SheetKind, action?: StageAction) => void;
 }
 
 // שורת פעולה קומפקטית — כל השורה לחיצה, ופיל ה-CTA בקצה הוא ה-affordance
@@ -30,7 +31,7 @@ function ActionRowView({ row, onCta }: { row: ActionRow; onCta: Props['onCta'] }
     </>
   );
   return row.status === 'pending' ? (
-    <button className="sp-act actionable" onClick={() => onCta(row.opens)} aria-label={`${row.title} — ${row.cta}`}>
+    <button className="sp-act actionable" onClick={() => onCta(row.opens, row)} aria-label={`${row.title} — ${row.cta}`}>
       {inner}
     </button>
   ) : (
@@ -81,7 +82,7 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onCta 
       {sub.message && <div className="sp-message">{sub.message}</div>}
       {/* פעולה אחת → CTA ראשי · כמה פעולות → שורות · אין פעולה → כלום */}
       {soloCta ? (
-        <button className="sp-cta" onClick={() => onCta(soloCta.opens)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
+        <button className="sp-cta" onClick={() => onCta(soloCta.opens, soloCta)}>{soloCta.ctaFull ?? soloCta.cta} ←</button>
       ) : rows.length > 0 ? (
         <div className="sp-acts">
           {rows.map((r) => <ActionRowView key={r.id} row={r} onCta={onCta} />)}

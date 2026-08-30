@@ -337,6 +337,59 @@ button { font-family: inherit; cursor: pointer; }
 .fj-todo .fj-name { color: var(--muted); font-weight: 500; }
 .fj-view { border: 1px solid var(--border); background: #fff; color: var(--muted); font-size: 11px; border-radius: 999px; padding: 3px 12px; }
 
+/* ============================================================
+   גיליון פעולה מוטמע — פעולת לקוח נפתחת בתוך מר יפן.
+   הרקע נשאר במקומו ומעומעם; הגיליון נחתך בתוך מסך ה-iPhone
+   (ל-.iphone-device יש transform, ולכן fixed מתוחם בתוכו).
+   ============================================================ */
+.eas-overlay { align-items: flex-end; padding: 0; }
+.eas-sheet {
+  position: relative; display: flex; flex-direction: column;
+  width: 100%; max-width: 560px; height: 92%; max-height: 92%;
+  background: #fff; border-radius: 18px 18px 0 0; overflow: hidden;
+  box-shadow: 0 -8px 40px rgba(43,43,51,.22);
+  animation: eas-up .26s cubic-bezier(.2,.7,.3,1);
+}
+@keyframes eas-up { from { transform: translateY(4%); opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .eas-sheet { animation: none; } }
+.eas-grip { flex: 0 0 auto; width: 38px; height: 4px; border-radius: 999px; background: #e2ddd3; margin: 7px auto 0; }
+.eas-head {
+  flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px 9px; border-bottom: 1px solid var(--border-soft);
+}
+.eas-title { font-size: 15px; font-weight: 700; }
+.eas-head-end { display: inline-flex; align-items: center; gap: 10px; }
+.eas-out { font-size: 11.5px; font-weight: 600; color: var(--muted); text-decoration: none; white-space: nowrap; }
+.eas-out:hover { color: var(--accent-deep); }
+.eas-close { border: none; background: none; color: var(--muted); font-size: 16px; padding: 4px 6px; line-height: 1; }
+.eas-close:hover { color: var(--ink); }
+.eas-body { position: relative; flex: 1 1 auto; min-height: 0; background: #fff; }
+.eas-frame {
+  width: 100%; height: 100%; border: 0; display: block;
+  opacity: 0; transition: opacity .2s;
+}
+.eas-frame.on { opacity: 1; }
+/* מצבי ביניים — טעינה או חסימת הטמעה. אין הפניה שקטה החוצה. */
+.eas-state {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 7px; padding: 24px;
+  text-align: center; font-size: 13px; color: var(--muted); background: #fff;
+}
+.eas-blocked b { font-size: 14.5px; color: var(--ink); }
+.eas-fallback {
+  margin-top: 6px; display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent); color: #fff; text-decoration: none;
+  font-size: 13.5px; font-weight: 700; border-radius: 999px; padding: 10px 18px;
+  box-shadow: 0 2px 8px rgba(238,111,33,.24);
+}
+.eas-fallback:hover { background: var(--accent-deep); }
+/* דסקטופ: מודאל ממורכז בגודל נוח, באותו רכיב */
+@media (min-width: 681px) {
+  .eas-overlay { align-items: center; padding: 24px; }
+  .eas-sheet { height: 88%; max-height: 820px; border-radius: 18px; }
+  .eas-grip { display: none; }
+}
+
 /* ===== DEMO — לא חלק מהמוצר ===== */
 /* z-index 50: מעל הדף והטאב-בר, מתחת ל-sheets של המוצר (60) —
    כלי הדמו לעולם לא מסתירים אינטראקציה של הלקוח */
@@ -507,6 +560,11 @@ html.phone-mode .deco-fuji { height: 34px; }
 html.phone-mode .sp-name { font-size: 15.5px; }
 html.phone-mode .sp-act { min-height: 48px; }
 html.phone-mode .sp-act-title { font-size: 13px; }
+/* גיליון הפעולה המוטמע נשאר גיליון תחתון בתוך מסך ה-iPhone,
+   גם כשה-viewport של הדסקטופ רחב (מראה של חוקי המובייל) */
+html.phone-mode .eas-overlay { align-items: flex-end; padding: 0; }
+html.phone-mode .eas-sheet { height: 92%; max-height: 92%; border-radius: 18px 18px 0 0; }
+html.phone-mode .eas-grip { display: block; }
 html.phone-mode .jwrap { margin-bottom: 9px; padding-bottom: 7px; }
 html.phone-mode .jp-count { margin-top: 7px; }
 html.phone-mode .jpath { padding: 4px 0 0; }

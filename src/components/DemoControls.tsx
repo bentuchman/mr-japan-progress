@@ -18,6 +18,7 @@ interface Props {
   hotelTaskStatus: ActionStatus;
   attractionsTaskStatus: ActionStatus;
   attractionsAvailable: boolean;
+  onHotelsSent: () => void;   // דמו: הלקוח שלח את הטופס המוטמע
   onMondayV: (task: 'hotels' | 'attractions') => void;
   onTimeScenario: (s: TimeToTripScenario) => void;
   onOpenWindow: () => void;
@@ -133,26 +134,33 @@ export function DemoControls(props: Props) {
         </button>
       )}
 
+      {/* הטופס המוטמע חי בתוך האפליקציה ואינו מדווח בהכרח על שליחה.
+          כפתור דמו זה מדמה את סיום הפעולה מצד הלקוח ("✓ נשלח"). */}
+      {props.hotelTaskStatus === 'pending' && (
+        <button className="dbtn demo-window-btn" onClick={props.onHotelsSent}>
+          ✓ הדמיית שליחת טופס המלונות
+        </button>
+      )}
+
       {/* סימולציית עדכון Monday — פנימי/דמו בלבד. ממחיש את השרשרת:
           הלקוח מבצע פעולה → הלקוח רואה "✓ נשלח" → הצוות מעדכן ב-Monday →
           מערכת ה-Progress מתעדכנת. הלקוח לעולם אינו רואה את המנגנון הזה. */}
+      {/* המלונות פעילים בשני התרחישים; האטרקציות רק כשחלון התשלום פתוח */}
+      <button
+        className="dbtn demo-window-btn"
+        disabled={props.hotelTaskStatus !== 'waitingForTeam'}
+        onClick={() => props.onMondayV('hotels')}
+      >
+        {props.hotelTaskStatus === 'completed' ? '✓ Monday עודכן — מלונות' : 'סימולציית עדכון Monday — מלונות'}
+      </button>
       {props.attractionsAvailable && (
-        <>
-          <button
-            className="dbtn demo-window-btn"
-            disabled={props.hotelTaskStatus !== 'waitingForTeam'}
-            onClick={() => props.onMondayV('hotels')}
-          >
-            {props.hotelTaskStatus === 'completed' ? '✓ Monday עודכן — מלונות' : 'סימולציית עדכון Monday — מלונות'}
-          </button>
-          <button
-            className="dbtn demo-window-btn"
-            disabled={props.attractionsTaskStatus !== 'waitingForTeam'}
-            onClick={() => props.onMondayV('attractions')}
-          >
-            {props.attractionsTaskStatus === 'completed' ? '✓ Monday עודכן — אטרקציות' : 'סימולציית עדכון Monday — אטרקציות'}
-          </button>
-        </>
+        <button
+          className="dbtn demo-window-btn"
+          disabled={props.attractionsTaskStatus !== 'waitingForTeam'}
+          onClick={() => props.onMondayV('attractions')}
+        >
+          {props.attractionsTaskStatus === 'completed' ? '✓ Monday עודכן — אטרקציות' : 'סימולציית עדכון Monday — אטרקציות'}
+        </button>
       )}
 
       <div className="demo-scenario-label" style={{ marginTop: 10 }}>תרחיש: לקוח מתקדם · {props.scenarioIndex + 1}/{SCENARIO.length}</div>
