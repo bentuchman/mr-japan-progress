@@ -163,11 +163,21 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
       setUnlinked({ title: action.title, awaitingVerification: true });
       return;
     }
-    // פעולה עם כתובת חיצונית מאומתת (fillout/zite) כלל אינה מגיעה לכאן:
-    // ה-CTA שלה מרונדר כעוגן <a href> והדפדפן מנווט בעצמו.
-    if (action.url && action.openMode === 'external') {
-      window.open(action.url, '_blank', 'noopener,noreferrer');
-      return;
+    if (action.url) {
+      // פעולה עם כתובת מאומתת נפתחת *בתוך* מר יפן: גיליון מוטמע מעל
+      // המסע, וה-renderer נבחר לפי הספק (Fillout רשמי / iframe ל-Zite).
+      // הלקוח לא עוזב את האפליקציה; סגירה מחזירה לאותו שלב בדיוק.
+      if (action.provider === 'fillout' || action.provider === 'zite') {
+        setEmbedded({
+          id: action.id, title: action.title, url: action.url,
+          provider: action.provider, filloutFormId: action.filloutFormId,
+        });
+        return;
+      }
+      if (action.openMode === 'external') {
+        window.open(action.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
     }
     if (action.openMode === 'sheet' && action.opens && action.opens !== 'none') {
       setSheet(action.opens);
