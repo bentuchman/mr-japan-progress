@@ -48,7 +48,9 @@ export interface JourneyAction {
   title: string;                // שם הפעולה — מוצג כשיש יותר מפעולה אחת
   cta: string;                  // תווית קצרה לשורת פעולה ("לבחירה")
   ctaFull?: string;             // תווית ל-CTA ראשי (פעולה בודדת) — ברירת מחדל: cta
-  openMode: OpenMode;
+  // null = טרם נקבע כיצד הפעולה נפתחת (אין קישור מאומת). ה-CTA נשאר
+  // גלוי, ולחיצה מציגה מצב "טרם חובר" (DEV) — לא תוכן מומצא.
+  openMode: OpenMode | null;
   // כתובת מלאה ואטומה כפי שהיא מגיעה מ-Monday. null = טרם סופקה כתובת
   // אמיתית לפעולה הזו (לא ממציאים קישורים). ה-UI אינו מפרש אותה.
   url: string | null;
@@ -348,18 +350,32 @@ export const PAYMENT_DETAILS = {
   cta: 'מעבר לתשלום',
 };
 
-// ===== קישורי פעולה (נתוני דמו) =====
-// הקישור המלא כפי שהוא קיים ב-Monday, כמות שהוא — כתובת פעולה *אטומה*.
-// ה-UI אינו מפרש אותה: לא מפרק פרמטרים, לא מחלץ מזהים, לא בונה כתובת
-// ולא מנהל מזהה לקוח. בפרודקשן הקישור יגיע מהבקאנד לפי הלקוח המחובר.
+// ============================================================
+// מלאי הקישורים. מופרד לשלוש קבוצות, ורק הראשונה משויכת לפעולה.
+// כל כתובת נשמרת שלמה וכ*אטומה*: לא מפרקים פרמטרים, לא מחלצים מזהים,
+// לא בונים מחדש ולא מציגים כתובות גולמיות ללקוח.
+// ============================================================
+
+// (1) מאומת ומשויך לפעולה
 export const DEMO_ACTION_LINKS = {
-  // ⚠️ שיוך עסקי לאישור: הקישור הזה נמסר עבור פעולת בחירת המלונות.
-  // מקורו (עמודת Monday) טרם אומת מולנו — יש לאשר לפני פרודקשן.
+  // טופס בחירת המלונות — הקישור היחיד שאושר לשיוך בשלב זה
   hotelSelection:
     'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%A9%D7%92%D7%99%D7%AA%20%D7%A7%D7%99%D7%A0%D7%9F-%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%20%20(%D7%94%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%D7%99%D7%9D)&clientAirtableID=recPNgSfcIpGwEROL&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=08/12/2026%20-%2011/12/2026&dest2=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date2=11/12/2026%20-%2012/12/2026&dest3=%D7%A7%D7%99%D7%95%D7%98%D7%95&date3=12/12/2026%20-%2015/12/2026&dest4=%D7%90%D7%95%D7%A1%D7%A7%D7%94&date4=15/12/2026%20-%2017/12/2026&dest5=%D7%98%D7%95%D7%A7%D7%99%D7%95&date5=17/12/2026%20-%2020/12/2026&dest1days=3&dest2days=1&dest3days=3&dest4days=2&dest5days=3',
-  // קישור אמיתי שנמסר אך *טרם שויך* לפעולה במסע. לא מחברים אותו לשום
-  // שלב עד שיימסר לאיזו פעולה (ואיזו עמודת Monday) הוא שייך.
-  unassignedZitePage: 'https://wnzocgbazy.zite.so/?id=12683534596',
+} as const;
+
+// (2) קישורים אמיתיים שתפקידם העסקי *טרם אומת* — לא משויכים לשום שלב
+export const UNASSIGNED_LINKS = {
+  filloutUnknown:
+    'https://mrjapan.fillout.com/t/vYY9mWeMQsus?clientName=%D7%AA%D7%9E%D7%A8%20%D7%98%D7%9C%20%D7%A7%D7%A8%D7%A1%D7%95%20%20(%D7%9E%D7%A9%D7%A4%D7%97%D7%AA%20%D7%A7%D7%A8%D7%A1%D7%95)&mondayClientId=11395841792',
+  zitePage: 'https://wnzocgbazy.zite.so/?id=12683534596',
+} as const;
+
+// (3) Webhooks של אוטומציה — *לא* עמודים ללקוח.
+// לא מוטמעים, לא נפתחים מ-CTA, ולא מופיעים בשום מקום ב-UI.
+// מוחזקים כאן לתיעוד בלבד עד שתפקידם יאומת.
+export const AUTOMATION_WEBHOOKS = {
+  makeA: 'https://hook.eu2.make.com/bcpqbqhj3c3ww2biylmmlw4buljklg26?id=11395841792',
+  makeB: 'https://hook.eu2.make.com/uishntrm4b5350rij0ssujkmv8krqosn?clientMondayID=11395841792',
 } as const;
 
 // ============================================================
@@ -374,22 +390,18 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     id: 'service-payment', stageId: 'service-payment',
     icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום',
-    // אין עדיין כתובת תשלום אמיתית. נשאר על מסך המוצר הקיים.
-    openMode: 'sheet', opens: 'payment', url: null,
+    openMode: null, url: null,
   },
   {
     id: 'meeting', stageId: 'meeting',
     icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', ctaFull: 'לפרטי הפגישה',
-    // הפגישה עצמה מתקיימת מחוץ למר יפן (Zoom) ולא מוטמעת. כשתסופק
-    // כתובת פגישה אמיתית — openMode: 'external' עם ה-url שלה.
-    openMode: 'sheet', opens: 'meeting', url: null,
+    // הפגישה מתקיימת מחוץ למר יפן; הכתובת עצמה טרם נמסרה
+    openMode: 'external', url: null,
   },
   {
     id: 'changes-form', stageId: 'changes-form',
-    icon: '✏️', title: 'טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס',
-    // חסר: קישור טופס בקשות השינויים (Plan changes requests form).
-    // במפורש *לא* משתמשים בקישור המלונות ולא בטופס מדומה.
-    openMode: 'fillout', url: null,
+    icon: '✏️', title: 'מילוי טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס',
+    openMode: null, url: null,
   },
   {
     id: 'hotels', stageId: 'selections',
@@ -399,15 +411,13 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     id: 'attractions', stageId: 'selections',
     icon: '🎟️', title: 'תשלום אטרקציות', cta: 'לתשלום',
-    // חסר: קישור התשלום. כתובת נפרדת משלה — לא הקישור של המלונות.
-    openMode: 'sheet', opens: 'attractions-pay', url: null,
+    openMode: null, url: null,
     requiresPaymentWindow: true,
   },
   {
     id: 'feedback', stageId: 'feedback',
-    icon: '💬', title: 'משוב על הטיול', cta: 'למילוי', ctaFull: 'למילוי המשוב',
-    // חסר: קישור טופס המשוב (Feedback Form Link).
-    openMode: 'sheet', opens: 'feedback', url: null,
+    icon: '💬', title: 'משוב', cta: 'למילוי', ctaFull: 'למילוי המשוב',
+    openMode: null, url: null,
   },
 ];
 

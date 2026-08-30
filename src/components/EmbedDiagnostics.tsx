@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { DEMO_ACTION_LINKS } from '../journeyConfig';
+import { DEMO_ACTION_LINKS, UNASSIGNED_LINKS } from '../journeyConfig';
 import { EmbedState, embedVerdict, reachable } from './EmbeddedActionSheet';
 
 // DEMO/DEV בלבד — לא חלק ממסך הלקוח.
 // בודק בפועל, במכשיר שמריץ את הפרוטוטייפ, אילו מהקישורים האמיתיים
 // מסכימים להיטען בתוך iframe. משתמש באותה בדיקה כמו הגיליון עצמו.
+// webhooks של אוטומציה אינם נבדקים כאן — הם אינם עמודים ללקוח.
 const TARGETS = [
-  { id: 'fillout', label: 'טופס Fillout (בחירת מלונות)', url: DEMO_ACTION_LINKS.hotelSelection },
-  { id: 'zite', label: 'עמוד Zite (טרם שויך לפעולה)', url: DEMO_ACTION_LINKS.unassignedZitePage },
+  { id: 'hotels', label: 'Fillout · בחירת מלונות (משויך)', url: DEMO_ACTION_LINKS.hotelSelection },
+  { id: 'fillout2', label: 'Fillout נוסף · טרם שויך', url: UNASSIGNED_LINKS.filloutUnknown },
+  { id: 'zite', label: 'Zite · טרם שויך', url: UNASSIGNED_LINKS.zitePage },
 ];
 
 function Probe({ label, url }: { label: string; url: string }) {

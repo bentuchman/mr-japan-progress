@@ -1,10 +1,7 @@
 import { PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
 import mascot from './assets/mascot.png';
 import {
-  ATTRACTIONS_PAYMENT,
   ActionStatus,
-  MEETING_DETAILS,
-  PAYMENT_DETAILS,
   PackageId,
   SCENARIO,
   SheetKind,
@@ -47,29 +44,6 @@ const TRIP = { title: 'המסע ליפן', start: '15/10/26', end: '28/10/26', d
 
 type SheetOpen = SheetKind | 'full';
 
-// משוב ברירת מחדל לצפייה כשמדלגים לתת-מצב "נשלח" בלי למלא (דמו)
-const FALLBACK_FEEDBACK = { rating: 5, text: 'הטיול היה חלומי — תודה על הליווי לאורך כל הדרך! 🇯🇵' };
-
-// דירוג כוכבים — אינטראקטיבי בטופס, קריאה בלבד בצפייה
-function Stars({ value, onRate }: { value: number; onRate?: (v: number) => void }) {
-  return (
-    <div className={`stars${onRate ? '' : ' readonly'}`} role={onRate ? 'radiogroup' : undefined} aria-label="דירוג">
-      {[1, 2, 3, 4, 5].map((v) => (
-        <button
-          key={v}
-          type="button"
-          className={`star${v <= value ? ' on' : ''}`}
-          disabled={!onRate}
-          aria-label={`${v} כוכבים`}
-          onClick={() => onRate?.(v)}
-        >
-          {v <= value ? '★' : '☆'}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // phoneDemo: מצב הצגת iPhone — ניווט תצוגה במחוות (swipe/drag/edge-tap).
 // fixedTimeScenario: תצוגת ההשוואה מקבעת את תרחיש הזמן למופע (state עצמאי לכל מופע).
 // initialStageId: שלב הפתיחה של המופע (בהשוואה: השלב האדפטיבי).
@@ -97,11 +71,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // מצב לקוח (עתידי נעול) נבדק ידנית דרך המתג בפאנל ה-Demo.
   const [demoMode, setDemoMode] = useState(true);
   const [scenarioIndex, setScenarioIndex] = useState(2); // ברירת מחדל: פגישה
-
-  // המשוב שנשלח (דמו) + טיוטת הטופס
-  const [feedback, setFeedback] = useState<{ rating: number; text: string } | null>(null);
-  const [fbRating, setFbRating] = useState(0);
-  const [fbText, setFbText] = useState('');
 
   // ===== תרחיש זמן-לטיול (הכלל העסקי: "3 חודשים לפני הטיול") =====
   // דגל תרחיש דמו — במימוש אמיתי ייגזר מתאריכי הטיול/Monday.
@@ -180,17 +149,22 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // מנתב פעולה לפי ה-openMode שלה בלבד. אין כאן if לפי stageId ואין
   // יעדים מקודדים — ההתנהגות מגיעה מנתוני הפעולה.
   function handleAction(action: ActionRow) {
-    if ((action.openMode === 'fillout' || action.openMode === 'embedded') && action.url) {
-      setEmbedded({ id: action.id, title: action.title, url: action.url });
+    if (action.url) {
+      if (action.openMode === 'fillout' || action.openMode === 'embedded') {
+        setEmbedded({ id: action.id, title: action.title, url: action.url });
+        return;
+      }
+      if (action.openMode === 'external') {
+        window.open(action.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    }
+    if (action.openMode === 'sheet' && action.opens && action.opens !== 'none') {
+      setSheet(action.opens);
       return;
     }
-    if (action.openMode === 'external' && action.url) {
-      window.open(action.url, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    if (action.opens && action.opens !== 'none') { setSheet(action.opens); return; }
-    // אין כתובת אמיתית ואין מסך פנימי — מצב "טרם חובר". הודעה פנימית
-    // לצורכי הדמו בלבד; בפרודקשן פעולה כזו כלל לא תוצג ללקוח.
+    // openMode null, או מצב שאין לו עדיין כתובת מאומתת — ה-CTA נשאר
+    // גלוי אך מציג מצב "טרם חובר" (DEV). לא מוצג תוכן מומצא.
     setUnlinked(action.title);
   }
 
@@ -339,17 +313,13 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   }
 
   // סימולציות (mock) — משנות את תת-המצב של השלב שבו הן קרו
-  function submitPayment() {
-    setSheet('none');
-    setSubSel((m) => ({ ...m, 'service-payment': 'paid' }));
-  }
   // הלקוח סיים את חלקו. זו אינה התקדמות במסע: המשימה עוברת ל"נשלח"
   // בלבד, וההשלמה תגיע מהתהליך הפנימי. משמש גם את הטופס המוטמע.
   function markHotelsSent() {
     setHotelTaskStatus('waitingForTeam');
     setSheet('none');
   }
-  // תשלום אטרקציות (סימולציה) — עובר ל"ממתינה לצוות", לא ל"הושלם"
+  // דמו: הלקוח השלים את תשלום האטרקציות (אין עדיין קישור אמיתי)
   function payAttractions() {
     setAttractionsTaskStatus('waitingForTeam');
     setSheet('none');
@@ -368,16 +338,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     setAttractionsTaskStatus('pending');
     setSheet('none');
   }
-  function submitFeedback() {
-    setFeedback({
-      rating: fbRating || FALLBACK_FEEDBACK.rating,
-      text: fbText.trim() || FALLBACK_FEEDBACK.text,
-    });
-    setSheet('none');
-    setSubSel((m) => ({ ...m, feedback: 'submitted' }));
-  }
-
-  const shownFeedback = feedback ?? FALLBACK_FEEDBACK;
 
   return (
     <div className="page" {...gestureProps}>
@@ -465,79 +425,6 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
       )}
 
       {/* ===== Bottom Sheets ===== */}
-      {sheet === 'meeting' && (
-        <BottomSheet title={MEETING_DETAILS.title} onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">{MEETING_DETAILS.title}</div>
-            <div className="sheet-sub">שלב {dispIndex + 1} מתוך {stages.length}</div>
-            <div className="sheet-line">📅 <b>{MEETING_DETAILS.date}</b> · {MEETING_DETAILS.time}</div>
-            <div className="sheet-line">📍 {MEETING_DETAILS.location}</div>
-            <div className="sheet-desc">{MEETING_DETAILS.description}</div>
-            <button className="sp-cta sheet-cta">{MEETING_DETAILS.cta} ←</button>
-            <div className="sheet-after">{MEETING_DETAILS.afterNote}</div>
-          </div>
-        </BottomSheet>
-      )}
-
-      {sheet === 'payment' && (
-        <BottomSheet title={PAYMENT_DETAILS.title} onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">{PAYMENT_DETAILS.title}</div>
-            <div className="sheet-sub">שלב {dispIndex + 1} מתוך {stages.length}</div>
-            <div className="sheet-desc">{PAYMENT_DETAILS.description}</div>
-            <div className="sheet-line">{PAYMENT_DETAILS.line}</div>
-            <button className="sp-cta sheet-cta" onClick={submitPayment}>{PAYMENT_DETAILS.cta} ←</button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* תשלום אטרקציות — סימולציית דמו; המנגנון בפועל יוגדר לפי התהליך הקיים */}
-      {sheet === 'attractions-pay' && (
-        <BottomSheet title={ATTRACTIONS_PAYMENT.title} onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">{ATTRACTIONS_PAYMENT.title}</div>
-            <div className="sheet-desc">{ATTRACTIONS_PAYMENT.description}</div>
-            <div className="sheet-note">{ATTRACTIONS_PAYMENT.note}</div>
-            <button className="sp-cta sheet-cta" onClick={payAttractions}>{ATTRACTIONS_PAYMENT.cta} ←</button>
-            <button className="sheet-secondary" onClick={() => setSheet('none')}>סגירה</button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* טופס משוב (דמו) */}
-      {sheet === 'feedback' && (
-        <BottomSheet title="משוב" onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">נשמח לשמוע איך היה 🇯🇵</div>
-            <div className="sheet-desc">איך הייתה החוויה שלכם עם מר יפן?</div>
-            <Stars value={fbRating} onRate={setFbRating} />
-            <div className="sheet-label">ספרו לנו קצת על החוויה שלכם</div>
-            <textarea
-              className="sheet-textarea"
-              placeholder="מה אהבתם? מה אפשר לשפר?"
-              rows={4}
-              value={fbText}
-              onChange={(e) => setFbText(e.target.value)}
-            />
-            <button className="sp-cta sheet-cta" onClick={submitFeedback}>שליחת המשוב ←</button>
-            <button className="sheet-secondary" onClick={() => setSheet('none')}>אולי אחר כך</button>
-          </div>
-        </BottomSheet>
-      )}
-
-      {/* צפייה במשוב שנשלח — קריאה בלבד */}
-      {sheet === 'feedback-view' && (
-        <BottomSheet title="המשוב שלכם" onClose={() => setSheet('none')}>
-          <div className="sheet-body">
-            <div className="sheet-title">המשוב שלכם</div>
-            <div className="sheet-sent">✓ המשוב נשלח לצוות מר יפן</div>
-            <Stars value={shownFeedback.rating} />
-            <div className="sheet-quote">{shownFeedback.text}</div>
-            <button className="sheet-secondary" onClick={() => setSheet('none')}>סגירה</button>
-          </div>
-        </BottomSheet>
-      )}
-
       {sheet === 'full' && (
         <JourneyFullView
           stages={stages}
