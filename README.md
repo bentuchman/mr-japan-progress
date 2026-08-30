@@ -54,6 +54,26 @@
 - `src/styles.css` → הטוקנים (:root) והמחלקות; אם יש לך design tokens קיימים — מפה אליהם
 - `src/App.tsx` → חיווט: currentStage/previewStage, auto-advance, sheets, mode
 
+## בדיקת ההטמעה מחוץ לסביבת התצוגה
+דף ה-Artifact חוסם iframes חיצוניים ב-CSP, ולכן **אינו** סביבת בדיקה קבילה להטמעה.
+לבדיקה אמיתית:
+```
+npm install
+npm run dev          # http://localhost:5173
+```
+ואז: הצ'יפ Demo ← Advanced ← "בחירת מלונות" ← לחיצה על ה-CTA. לבדיקת שלושת
+הטפסים בשלוש וריאציות (כתובת ישירה / הטמעה רשמית / הטמעה + דומיין מותאם):
+Demo ← "🔎 בדיקת הקישורים האמיתיים".
+אם הטופס אינו מוצג — DevTools ← Console; הודעת `X-Frame-Options` / `frame-ancestors`
+היא התשובה, והיא אינה ניתנת ללכידה מקוד.
+
+## אספקת קישורי הפעולה (`src/actionLinks.ts`)
+חוזה אחד לפרוטוטייפ ולפרודקשן: `resolveActionLink({ actionId, clientId }) → { url }`.
+היום המקור הוא הקונפיג המקומי; בפרודקשן מחליפים מקור אחד
+(`setActionLinkSource`) בקריאה לבקאנד, שהוא זה שמדבר עם Monday/Make ומחזיר את
+הכתובת המלאה. הפרונט מקבל כתובת אטומה בלבד ואינו מחזיק טוקנים.
+`DEMO_CLIENT.clientId` הוא מזהה בדיקה פנימי — לא מוצג בשום ממשק.
+
 ## הרצה
 `prototype-single.html` — דמו בקובץ יחיד · פיתוח: `npm install && npx vite`
 בנייה מחדש של הקובץ היחיד: `npm run build:single`
