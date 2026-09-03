@@ -369,26 +369,18 @@ export const PAYMENT_DETAILS = {
 // לא בונים מחדש ולא מציגים כתובות גולמיות ללקוח.
 // ============================================================
 
-// (1) מאומת ומשויך לפעולה — המיפוי העסקי שנמסר
+// (1) מאומת ומשויך לפעולה — כתובות דמו *נקיות*, ללא פרמטרים של לקוח.
+// אומתו ידנית כנפתחות כך. בפרודקשן הבקאנד יספק את הכתובת המלאה
+// ללקוח המחובר דרך actionLinks.ts — הפרונט לא בונה אותה לעולם.
 export const DEMO_ACTION_LINKS = {
-  hotelSelection: 'https://wnzocgbazy.zite.so/?id=11395841792',
-  feedback:
-    'https://mrjapan.fillout.com/t/vYY9mWeMQsus?clientName=%D7%AA%D7%9E%D7%A8%20%D7%98%D7%9C%20%D7%A7%D7%A8%D7%A1%D7%95%20%20(%D7%9E%D7%A9%D7%A4%D7%97%D7%AA%20%D7%A7%D7%A8%D7%A1%D7%95)&mondayClientId=11395841792',
-  consultationReschedule:
-    'https://mrjapan.fillout.com/t/tuqZnYRAxeus?mondayId=11395841792&clientName=%D7%AA%D7%9E%D7%A8%20%D7%98%D7%9C%20%D7%A7%D7%A8%D7%A1%D7%95%20%20(%D7%9E%D7%A9%D7%A4%D7%97%D7%AA%20%D7%A7%D7%A8%D7%A1%D7%95)&email=tamartal@gmail.com',
+  hotelSelection: 'https://mrjapan.fillout.com/t/ohzZe7sCBrus',
+  consultationReschedule: 'https://mrjapan.fillout.com/t/tuqZnYRAxeus',
+  feedback: 'https://mrjapan.fillout.com/t/vYY9mWeMQsus',
 } as const;
 
-// (2) קישורים אמיתיים שתפקידם העסקי *טרם אומת* — לא משויכים לשום שלב
-export const UNASSIGNED_LINKS = {
-  // שימש קודם כטופס המלונות; במיפוי המאומת בחירת המלונות היא עמוד Zite,
-  // ולכן תפקידו של הטופס הזה חוזר להיות לא ידוע.
-  filloutHotelsForm:
-    'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%A9%D7%92%D7%99%D7%AA%20%D7%A7%D7%99%D7%A0%D7%9F-%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%20%20(%D7%94%D7%92%D7%A8%D7%95%D7%A1%D7%A4%D7%9C%D7%93%D7%99%D7%9D)&clientAirtableID=recPNgSfcIpGwEROL&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=08/12/2026%20-%2011/12/2026&dest2=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date2=11/12/2026%20-%2012/12/2026&dest3=%D7%A7%D7%99%D7%95%D7%98%D7%95&date3=12/12/2026%20-%2015/12/2026&dest4=%D7%90%D7%95%D7%A1%D7%A7%D7%94&date4=15/12/2026%20-%2017/12/2026&dest5=%D7%98%D7%95%D7%A7%D7%99%D7%95&date5=17/12/2026%20-%2020/12/2026&dest1days=3&dest2days=1&dest3days=3&dest4days=2&dest5days=3',
-} as const;
-
-// (3) Webhooks של אוטומציה — *לא* עמודים ללקוח.
-// לא מוטמעים, לא נפתחים מ-CTA, ולא מופיעים בשום מקום ב-UI.
-// מוחזקים כאן לתיעוד בלבד עד שתפקידם יאומת.
+// (3) Webhooks של אוטומציה — תיעוד DEV לא-פעיל בלבד. *לא* עמודים
+// ללקוח: לא מוטמעים, לא נפתחים, לא נקראים, ואינם מחוברים לאף פעולה
+// (ל-changes-form יש provider בלבד, בלי url). יאומתו מול נתנאל ב-Make.
 export const AUTOMATION_WEBHOOKS = {
   makeA: 'https://hook.eu2.make.com/bcpqbqhj3c3ww2biylmmlw4buljklg26?id=11395841792',
   // ===== טעון אימות =====
@@ -396,17 +388,6 @@ export const AUTOMATION_WEBHOOKS = {
   // טופס? הפניה? HTML? או רק הרצת אוטומציה. עד שיאומת הוא אינו מוטמע,
   // אינו נפתח, ואינו נקרא — לא בטעינה, לא ברינדור ולא בלחיצה.
   planChanges: 'https://hook.eu2.make.com/uishntrm4b5350rij0ssujkmv8krqosn?clientMondayID=11395841792',
-} as const;
-
-// (4) זוג כתובות בדיקה מאותו הקשר לקוח — נתוני בדיקה פנימיים בלבד.
-// אינן משויכות לשום שלב, אינן נפתחות מ-CTA, ואינן מוצגות בממשק.
-// שם הלקוח, מזהה Monday, מזהה Airtable ונתוני המסלול שבתוכן אינם
-// מוצגים בשום מקום — גם לא ב-DEV (מוצג host+path בלבד).
-export const DEV_TEST_LINKS = {
-  formA:
-    'https://mrjapan.fillout.com/t/ohzZe7sCBrus?clientName=%D7%93%D7%95%D7%A8%D7%95%D7%9F%20%D7%99%D7%95%D7%92%D7%91%20%20(%D7%A4%D7%95%D7%A8%D7%95%D7%9D%20%D7%93%D7%9C%D7%99%D7%A7)&clientAirtableID=rec9v8nF13LGXxPeq&plan=Advanced&dest1=%D7%98%D7%95%D7%A7%D7%99%D7%95&date1=07/10/2026%20-%2012/10/2026&dest2=%D7%A7%D7%90%D7%95%D7%95%D7%90%D7%92%D7%95%D7%A6%D7%B3%D7%99%D7%A7%D7%95&date2=12/10/2026%20-%2014/10/2026&dest3=%D7%94%D7%90%D7%A7%D7%95%D7%A0%D7%94&date3=14/10/2026%20-%2015/10/2026&dest4=%D7%A7%D7%99%D7%95%D7%98%D7%95&date4=15/10/2026%20-%2019/10/2026&dest5=%D7%94%D7%99%D7%A8%D7%95%D7%A9%D7%99%D7%9E%D7%94&date5=19/10/2026%20-%2020/10/2026&dest6=%D7%98%D7%95%D7%A7%D7%99%D7%95&date6=20/10/2026%20-%2022/10/2026&dest1days=5&dest2days=2&dest3days=1&dest4days=4&dest5days=1&dest6days=2',
-  formB:
-    'https://mrjapan.fillout.com/t/vYY9mWeMQsus?clientName=%D7%93%D7%95%D7%A8%D7%95%D7%9F%20%D7%99%D7%95%D7%92%D7%91%20%20(%D7%A4%D7%95%D7%A8%D7%95%D7%9D%20%D7%93%D7%9C%D7%99%D7%A7)&mondayClientId=11894977501',
 } as const;
 
 // ============================================================
@@ -428,14 +409,9 @@ export interface DevLink {
 
 export const DEV_LINK_INVENTORY: DevLink[] = [
   {
-    // בחירת מלונות — עמוד Zite, לפי המיפוי העסקי המאומת
-    id: 'hotelsZite', provider: 'zite', url: DEMO_ACTION_LINKS.hotelSelection,
+    id: 'hotelsFillout', provider: 'fillout', filloutId: 'ohzZe7sCBrus',
+    url: DEMO_ACTION_LINKS.hotelSelection,
     journeyAction: 'hotels', customerFacing: true,
-  },
-  {
-    id: 'feedbackFillout', provider: 'fillout', filloutId: 'vYY9mWeMQsus',
-    url: DEMO_ACTION_LINKS.feedback,
-    journeyAction: 'feedback', customerFacing: true,
   },
   {
     id: 'rescheduleFillout', provider: 'fillout', filloutId: 'tuqZnYRAxeus',
@@ -443,18 +419,17 @@ export const DEV_LINK_INVENTORY: DevLink[] = [
     journeyAction: 'consultation-reschedule', customerFacing: true,
   },
   {
-    // שויך ל"טופס שינויים", אבל לא ידוע אם הוא יעד תצוגה בכלל.
-    // לא מופעל אוטומטית בשום מצב.
+    id: 'feedbackFillout', provider: 'fillout', filloutId: 'vYY9mWeMQsus',
+    url: DEMO_ACTION_LINKS.feedback,
+    journeyAction: 'feedback', customerFacing: true,
+  },
+  {
+    // לא מופעל אוטומטית בשום מצב — עלול להריץ אוטומציה אמיתית
     id: 'planChangesHook', provider: 'make', url: AUTOMATION_WEBHOOKS.planChanges,
     journeyAction: 'changes-form', customerFacing: false,
   },
-  {
-    // הטופס ששימש קודם למלונות — תפקידו חזר להיות לא ידוע
-    id: 'filloutUnassigned', provider: 'fillout', filloutId: 'ohzZe7sCBrus',
-    url: UNASSIGNED_LINKS.filloutHotelsForm,
-    journeyAction: 'unknown', customerFacing: 'unknown',
-  },
 ];
+
 
 
 // ============================================================
@@ -487,14 +462,16 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
     id: 'changes-form', stageId: 'changes-form',
     icon: '✏️', title: 'מילוי טופס שינויים', cta: 'למילוי', ctaFull: 'למילוי הטופס',
     // Make webhook — משויך עסקית, אבל טרם אומת שהוא יעד תצוגה כלשהו.
-    // הכתובת יושבת כאן לתיעוד; הניתוב חוסם אותה לפני כל שימוש.
+    // אין url על הפעולה בכלל: הכתובת (עם מזהה לקוח) חיה רק בתיעוד
+    // ה-DEV, והניתוב ממילא חוסם את הספק הזה לפני כל שימוש.
     provider: 'make-webhook', verifiedDisplayTarget: false,
-    openMode: null, url: AUTOMATION_WEBHOOKS.planChanges,
+    openMode: null, url: null,
   },
   {
     id: 'hotels', stageId: 'selections',
     icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
-    provider: 'zite', openMode: null, url: DEMO_ACTION_LINKS.hotelSelection,
+    provider: 'fillout', openMode: null, url: DEMO_ACTION_LINKS.hotelSelection,
+    filloutFormId: 'ohzZe7sCBrus',
   },
   {
     id: 'attractions', stageId: 'selections',
