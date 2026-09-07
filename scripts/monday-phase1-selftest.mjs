@@ -131,3 +131,38 @@ configureMondayGateway({ endpoint: 'https://gateway.invalid/webhook' });
 }
 
 console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
+
+// ===== שלב 2 — פתרון פעולות סמנטיות (טעון באותו הרץ) =====
+{
+  const { resolveCustomerAction, isPaid, rendererForUrl } = await import('../src/customerActions.ts');
+  const base = {
+    clientMondayItemId: 'syn', paymentsMondayItemId: 'syn-p',
+    trip: { startDate: null, createdAt: null },
+    meeting: { zoomMeetingId: null, scheduledAt: null, meetingUrl: null,
+               rescheduleUrl: 'https://a.example.invalid/r', rescheduleUrlMaster: null },
+    forms: { hotelSelectionUrl: null, planChangesUrl: 'https://hook.eu2.make.com/fake-hook', feedbackUrl: null },
+    payments: { service: { status: 'Paid', paymentUrl: null, paidAt: null, receiptUrl: null },
+                attractions: { status: 'pending-something', paymentUrl: null, paidAt: null, receiptUrl: null } },
+  };
+  // מועמד יחיד → נבחר
+  assert.equal(resolveCustomerAction('meetingReschedule', base).url, 'https://a.example.invalid/r');
+  // שני מועמדים שונים → עצירה בטוחה, בלי ניחוש
+  const amb = { ...base, meeting: { ...base.meeting, rescheduleUrlMaster: 'https://b.example.invalid/r2' } };
+  assert.deepEqual(resolveCustomerAction('meetingReschedule', amb), { url: null, reason: 'ambiguous' });
+  // שניהם זהים → אין דו-משמעות
+  const same = { ...base, meeting: { ...base.meeting, rescheduleUrlMaster: base.meeting.rescheduleUrl } };
+  assert.equal(resolveCustomerAction('meetingReschedule', same).url, 'https://a.example.invalid/r');
+  // מארח אוטומציה בעמודת קישור → לעולם לא נפתח
+  assert.deepEqual(resolveCustomerAction('planChanges', base), { url: null, reason: 'blocked-host' });
+  // כתובת קביעת פגישה — מיפוי לא מאומת, תמיד עצירה בטוחה
+  assert.equal(resolveCustomerAction('meetingSchedule', base).reason, 'unverified-mapping');
+  // סטטוסים: רק Paid (בלי תלות רישיות) נחשב שולם
+  assert.equal(isPaid('Paid'), true);
+  assert.equal(isPaid('paid '), true);
+  assert.equal(isPaid('Pending'), false);
+  assert.equal(isPaid(null), false);
+  // בחירת renderer: fillout ציבורי → הטמעה רשמית; אחר → iframe
+  assert.deepEqual(rendererForUrl('https://mrjapan.fillout.com/t/AbC123'), { provider: 'fillout', filloutFormId: 'AbC123' });
+  assert.deepEqual(rendererForUrl('https://pay.example.invalid/x'), { provider: 'zite' });
+  console.log('customerActions selftest: עבר ✓');
+}

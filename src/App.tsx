@@ -21,6 +21,10 @@ import { BottomSheet } from './components/BottomSheet';
 import { EmbeddedActionSheet } from './components/EmbeddedActionSheet';
 import { LinkDiagnostics } from './components/LinkDiagnostics';
 import { CardDecor } from './components/CardDecor';
+import { useCustomerJourney } from './customerSession';
+import {
+  customerActionStatus, meetingDateLine, rendererForUrl, resolveCustomerAction,
+} from './customerActions';
 import { DemoControls } from './components/DemoControls';
 
 // הבית הקיים של מר יפן — נשמר (מקור אמת ויזואלי)
@@ -55,6 +59,10 @@ interface AppProps {
 }
 
 export default function App({ phoneDemo = false, fixedTimeScenario, initialStageId }: AppProps) {
+  // נתוני הלקוח הנוכחי מ-Monday (שלב 2). null = מצב הדמו הקיים, אחד
+  // לאחד. עם לקוח טעון, פעולות עם dataKey שואבות ממנו את הכתובת ואת
+  // הסטטוס — והמסע, השלבים וה-preview ממשיכים להתנהג בדיוק כמו היום.
+  const customer = useCustomerJourney();
   const [pkg, setPkg] = useState<PackageId>('advanced');
   // currentStage — היכן הלקוח נמצא בפועל. לעולם לא משתנה מלחיצה על תחנה.
   const [currentStageId, setCurrentStageId] = useState(initialStageId ?? 'meeting');
@@ -117,7 +125,9 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // להיות פעיל — גם אם בחירת המלונות כבר אושרה. אין "הושלם לתמיד".
   const selectionStatus: Record<string, ActionStatus> = {
     hotels: hotelTaskStatus,
-    attractions: attractionsTaskStatus,
+    // "Paid" ב-Monday גובר על סימולציית הדמו; כל ערך אחר משאיר את
+    // ההתנהגות הקיימת. משנה את מצב הפעולה בלבד — לא את מצב המסע.
+    attractions: customerActionStatus('attractionsPayment', customer) ?? attractionsTaskStatus,
   };
   const selectionRows: ActionRow[] = stageActions('selections', attractionsAvailable).map((a) => ({
     ...a,
@@ -141,7 +151,18 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // תתי-מצב מפורשים מה-Advanced controls ('all-ready' לבסיסי) גוברים על הסינתזה
   const selectionsView =
     dispStage.id === 'selections' && !['all-ready'].includes(subSel['selections'] ?? '');
-  const dispSub = selectionsView ? selectionsSub : configSub;
+  // שלב הפגישה עם לקוח טעון: המצב נגזר מנתוני הפגישה שלו —
+  // נקבעה (scheduledAt) → מצב ב' עם המועד האמיתי; אחרת → מצב א'.
+  // תצוגת נתוני פעולה בתוך השלב — לא הזזת המסע.
+  const meetingView = customer !== null && dispStage.id === 'meeting';
+  const meetingSub: SubState | null = meetingView
+    ? {
+        ...(dispSubs.find((ss) => ss.id === (customer.meeting.scheduledAt ? 'scheduled' : 'upcoming'))
+          ?? configSub),
+        dateLine: meetingDateLine(customer.meeting.scheduledAt),
+      }
+    : null;
+  const dispSub = selectionsView ? selectionsSub : meetingSub ?? configSub;
   // פעולות השלב המוצג — מזהים מהקונפיג, הגדרות מהרישום המרכזי.
   // שלב יכול להחזיק אפס, אחת או כמה פעולות; אין כאן שום ידע על שלב מסוים.
   const dispActions: ActionRow[] = selectionsView
@@ -149,13 +170,38 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
     : (dispSub.actions ?? [])
         .map(actionById)
         .filter((a): a is NonNullable<typeof a> => !!a)
-        .map((a) => ({ ...a, status: 'pending' as ActionStatus }));
+        .map((a) => ({ ...a, status: customerActionStatus(a.dataKey, customer) ?? ('pending' as ActionStatus) }));
   const dispNext = dispIndex < stages.length - 1 ? stages[dispIndex + 1] : null;
 
   // ניתוב לפי ספק התוכן של הפעולה. אין כאן if לפי stageId ואין יעדים
   // מקודדים — ההתנהגות מגיעה מנתוני הפעולה בלבד. פתיחת פעולה לעולם
   // אינה מזיזה את המסע: כאן נפתח רק גיליון/מסך, ומצב המסע נשלט בנפרד.
   function handleAction(action: ActionRow) {
+    // ===== מצב לקוח אמיתי =====
+    // הכתובת מגיעה אך ורק מנתוני הלקוח הנוכחי. אין נסיגה שקטה לכתובת
+    // גנרית: חסר/דו-משמעי/מארח חסום → מצב "לא זמין" הבטוח הקיים.
+    if (customer && action.dataKey) {
+      const resolved = resolveCustomerAction(action.dataKey, customer);
+      if (!resolved.url) {
+        setUnlinked({
+          title: action.title,
+          awaitingVerification: resolved.reason !== 'missing',
+        });
+        return;
+      }
+      // פגישת Zoom קורית מחוץ לאפליקציה; כל השאר — בגיליון המוטמע
+      if (action.openMode === 'external') {
+        window.open(resolved.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      const renderer = rendererForUrl(resolved.url);
+      setEmbedded({
+        id: action.id, title: action.title, url: resolved.url,
+        provider: renderer.provider, filloutFormId: renderer.filloutFormId,
+      });
+      return;
+    }
+    // ===== מצב דמו (אין לקוח טעון) — ההתנהגות הקיימת, ללא שינוי =====
     // webhook של אוטומציה: לא מוטמע, לא נפתח, ולא נקרא. הבדיקה הזו
     // קודמת לכל שימוש ב-url, כדי שהכתובת לא תיגע בשום מסלול תצוגה
     // כל עוד לא אומת מה היא בכלל מחזירה.

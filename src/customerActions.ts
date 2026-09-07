@@ -1,0 +1,124 @@
+// ============================================================
+// שלב 2 — פתרון פעולה סמנטית לנתוני הלקוח הנוכחי.
+//
+// רכיבי ה-UI אינם מכירים עמודות Monday. פעולה במסע נושאת מפתח סמנטי
+// (dataKey), והמודול הזה — בלבד — יודע לאיזה שדה ב-CustomerJourneyData
+// הוא מתורגם:
+//
+//   פעולה במסע → dataKey → CustomerJourneyData → הכתובת של הלקוח הזה
+//
+// לקוח X מקבל אך ורק את הערכים של לקוח X. אין כתובת גנרית מחליפה
+// בשקט כתובת לקוח חסרה: חסר = כישלון בטוח (מסך "לא זמין" הקיים).
+// ============================================================
+
+import type { CustomerJourneyData } from './monday/customerJourneyData.ts';
+import type { ActionStatus } from './journeyConfig';
+
+export type CustomerActionKey =
+  | 'servicePayment'
+  | 'meeting'
+  | 'meetingSchedule'
+  | 'meetingReschedule'
+  | 'planChanges'
+  | 'hotelSelection'
+  | 'attractionsPayment'
+  | 'feedback';
+
+export interface ResolvedActionUrl {
+  url: string | null;
+  // הסיבה כשאין כתובת — לדוחות ולמסך ה-DEV, לא ללוגיקה עסקית
+  reason?: 'missing' | 'ambiguous' | 'blocked-host' | 'unverified-mapping';
+}
+
+// webhooks של אוטומציה אינם עמודים ללקוח. גם אם עמודת קישור ב-Monday
+// מחזיקה כתובת כזו — לא פותחים, לא מטמיעים: כישלון בטוח.
+function blockedAutomationHost(url: string): boolean {
+  try {
+    return /(^|\.)make\.com$/i.test(new URL(url).hostname);
+  } catch {
+    return true;   // לא-URL אינו יעד ניווט
+  }
+}
+
+const safe = (url: string | null): ResolvedActionUrl =>
+  url === null
+    ? { url: null, reason: 'missing' }
+    : blockedAutomationHost(url)
+      ? { url: null, reason: 'blocked-host' }
+      : { url };
+
+export function resolveCustomerAction(
+  key: CustomerActionKey,
+  d: CustomerJourneyData,
+): ResolvedActionUrl {
+  switch (key) {
+    case 'servicePayment':
+      return safe(d.payments.service.paymentUrl);
+    case 'meeting':
+      return safe(d.meeting.meetingUrl);
+    case 'meetingSchedule':
+      // טרם אומת איזה שדה Monday הוא כתובת *קביעת* הפגישה הראשונית.
+      // לא ממציאים ולא משתמשים ב-Meeting link כתחליף — מיפוי פתוח.
+      return { url: null, reason: 'unverified-mapping' };
+    case 'meetingReschedule': {
+      const a = d.meeting.rescheduleUrl;
+      const b = d.meeting.rescheduleUrlMaster;
+      // שני מועמדים ב-Monday. מאוכלס אחד (או ששניהם זהים) → משתמשים בו.
+      // שניהם מאוכלסים בערכים שונים → אין ניחוש: עצירה בטוחה של המיפוי.
+      if (a && b && a !== b) return { url: null, reason: 'ambiguous' };
+      return safe(a ?? b);
+    }
+    case 'planChanges':
+      return safe(d.forms.planChangesUrl);
+    case 'hotelSelection':
+      return safe(d.forms.hotelSelectionUrl);
+    case 'attractionsPayment':
+      return safe(d.payments.attractions.paymentUrl);
+    case 'feedback':
+      return safe(d.forms.feedbackUrl);
+  }
+}
+
+// ===== סטטוס פעולה מנתוני הלקוח =====
+// הערך המאומת היחיד כרגע הוא "Paid". כל ערך אחר אינו מפורש —
+// הפעולה נשארת פתוחה. null = אין דריסה (המצב הקיים נשמר).
+export function isPaid(status: string | null): boolean {
+  return status !== null && status.trim().toLowerCase() === 'paid';
+}
+
+export function customerActionStatus(
+  key: CustomerActionKey | undefined,
+  d: CustomerJourneyData | null,
+): ActionStatus | null {
+  if (!d || !key) return null;
+  if (key === 'servicePayment') return isPaid(d.payments.service.status) ? 'completed' : 'pending';
+  if (key === 'attractionsPayment') return isPaid(d.payments.attractions.status) ? 'completed' : 'pending';
+  return null;
+}
+
+// ===== בחירת renderer לכתובת לקוח =====
+// טופס Fillout ציבורי מוטמע דרך ההטמעה הרשמית — מזהה הטופס נלקח
+// מנתיב הכתובת (מידע טכני של הספק, לא נתון לקוח). כל השאר — iframe
+// גנרי בתוך אותו גיליון. אין כאן פירוק פרמטרים ואין קריאת מזהי לקוח.
+export function rendererForUrl(url: string): { provider: 'fillout' | 'zite'; filloutFormId?: string } {
+  try {
+    const u = new URL(url);
+    if (/(^|\.)fillout\.com$/i.test(u.hostname)) {
+      const m = u.pathname.match(/^\/t\/([A-Za-z0-9]+)/);
+      if (m) return { provider: 'fillout', filloutFormId: m[1] };
+    }
+  } catch {
+    /* לא-URL לא מגיע לכאן — resolveCustomerAction חוסם */
+  }
+  return { provider: 'zite' };
+}
+
+// שורת המועד בכרטיס הפגישה — "12/08 · 19:00" מתוך ISO. בלי ניחושי
+// אזור זמן: מציגים את הערך כפי שנשמר ב-Monday.
+export function meetingDateLine(scheduledAt: string | null): string | undefined {
+  if (!scheduledAt) return undefined;
+  const m = scheduledAt.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/);
+  if (!m) return undefined;
+  const [, , mo, day, hh, mm] = m;
+  return hh ? `${day}/${mo} · ${hh}:${mm}` : `${day}/${mo}`;
+}

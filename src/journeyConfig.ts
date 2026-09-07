@@ -61,6 +61,10 @@ export interface JourneyAction {
   // ספק שטרם אומת שהוא בכלל יעד תצוגה (נכון היום: make-webhook בלבד).
   // כל עוד false — שום קוד אינו טוען, מטמיע או קורא לכתובת.
   verifiedDisplayTarget?: boolean;
+  // המפתח הסמנטי שדרכו הפעולה מקבלת את הערך של *הלקוח הנוכחי*
+  // (customerActions.resolveCustomerAction). בלי לקוח טעון — הפעולה
+  // מתנהגת כדמו. רכיבי UI לעולם אינם מכירים עמודות Monday.
+  dataKey?: import('./customerActions').CustomerActionKey;
   // כתובת מלאה ואטומה כפי שהיא מגיעה מ-Monday. null = טרם סופקה כתובת
   // אמיתית לפעולה הזו (לא ממציאים קישורים). ה-UI אינו מפרש אותה.
   url: string | null;
@@ -184,8 +188,9 @@ export const STAGES: Stage[] = [
       {
         id: 'upcoming',
         demoLabel: 'טרם נקבעה',
-        ownership: 'both',
+        ownership: 'client',
         message: 'נעבור יחד על התוכנית ונדייק את הפרטים.',
+        actions: ['meeting-schedule'],
       },
     ],
   },
@@ -444,17 +449,29 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     id: 'service-payment', stageId: 'service-payment',
     icon: '💳', title: 'תשלום דמי השירות', cta: 'לתשלום',
+    dataKey: 'servicePayment',
     openMode: null, url: null,
   },
   {
+    // מצב א' — טרם נקבעה פגישה. כתובת הקביעה הראשונית טרם אומתה
+    // ב-Monday, ולכן אין dataKey שמחזיר כתובת — לחיצה מציגה את מצב
+    // "לא זמין" הבטוח. לא ממציאים קישור.
+    id: 'meeting-schedule', stageId: 'meeting',
+    icon: '📅', title: 'קביעת פגישה עם מר יפן', cta: 'לקביעה', ctaFull: 'לקביעת פגישה',
+    dataKey: 'meetingSchedule',
+    openMode: null, url: null,
+  },
+  {
+    // מצב ב' — הפגישה קיימת; היעד הוא קישור ה-Zoom של הלקוח (חיצוני)
     id: 'meeting', stageId: 'meeting',
     icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', ctaFull: 'לפרטי הפגישה',
-    // הפגישה מתקיימת מחוץ למר יפן; הכתובת עצמה טרם נמסרה
+    dataKey: 'meeting',
     openMode: 'external', url: null,
   },
   {
     id: 'consultation-reschedule', stageId: 'meeting',
-    icon: '🕒', title: 'שינוי זמן פגישת ייעוץ', cta: 'לשינוי', ctaFull: 'לשינוי זמן הפגישה',
+    icon: '🕒', title: 'שינוי או ביטול פגישה', cta: 'לשינוי', ctaFull: 'לשינוי או ביטול',
+    dataKey: 'meetingReschedule',
     provider: 'fillout', openMode: null, url: DEMO_ACTION_LINKS.consultationReschedule,
     filloutFormId: 'tuqZnYRAxeus',
   },
@@ -465,23 +482,27 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
     // אין url על הפעולה בכלל: הכתובת (עם מזהה לקוח) חיה רק בתיעוד
     // ה-DEV, והניתוב ממילא חוסם את הספק הזה לפני כל שימוש.
     provider: 'make-webhook', verifiedDisplayTarget: false,
+    dataKey: 'planChanges',
     openMode: null, url: null,
   },
   {
     id: 'hotels', stageId: 'selections',
     icon: '🏨', title: 'בחירת מלונות', cta: 'לבחירה', ctaFull: 'לבחירת המלונות',
+    dataKey: 'hotelSelection',
     provider: 'fillout', openMode: null, url: DEMO_ACTION_LINKS.hotelSelection,
     filloutFormId: 'ohzZe7sCBrus',
   },
   {
     id: 'attractions', stageId: 'selections',
     icon: '🎟️', title: 'תשלום אטרקציות', cta: 'לתשלום',
+    dataKey: 'attractionsPayment',
     openMode: null, url: null,
     requiresPaymentWindow: true,
   },
   {
     id: 'feedback', stageId: 'feedback',
     icon: '💬', title: 'משוב', cta: 'למילוי', ctaFull: 'למילוי המשוב',
+    dataKey: 'feedback',
     provider: 'fillout', openMode: null, url: DEMO_ACTION_LINKS.feedback,
     filloutFormId: 'vYY9mWeMQsus',
   },
