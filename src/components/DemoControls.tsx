@@ -79,6 +79,12 @@ export function DemoControls(props: Props) {
           >
             📱 השוואת תרחישים
           </button>
+          <button
+            className="dbtn demo-mobile-btn"
+            onClick={() => (window as unknown as { __mrjToggleValidate?: () => void }).__mrjToggleValidate?.()}
+          >
+            🧭 אימות המסע (Phase 2)
+          </button>
         </>
       )}
 
