@@ -121,18 +121,27 @@ const expectUnknown = (state, label) =>
   expectStage(derive(approved({ operations: { hotelsBooked: true, attractionsReservationsStatus: 'Completed' } }), 'basic'),
     'selections', 'all-ready', 'all-ready בסיסי');
 
-  // מלונות הוזמנו + אטרקציות שולמו → הזמנת אטרקציות בטיפול הצוות
-  for (const attrRes of ['In Progress', 'Yet to start', null]) {
-    expectStage(derive(approved({
-      operations: { hotelsBooked: true, attractionsReservationsStatus: attrRes },
-      payments: { attractions: { status: 'Paid' } },
-    })), 'attractions-booking', 'working', `אטרקציות בטיפול (${attrRes})`);
-  }
+  // שלב 8 פעיל רק על האות הישיר: הזמנת האטרקציות In Progress
+  expectStage(derive(approved({
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
+  })), 'attractions-booking', 'working', 'In Progress → בביצוע');
   // חבילת בסיס: אין שלב attractions-booking → unknown מפורש, לא המצאה
   expectUnknown(derive(approved({
-    operations: { hotelsBooked: true },
-    payments: { attractions: { status: 'Paid' } },
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
   }), 'basic'), 'basic ללא שלב הזמנת אטרקציות');
+
+  // תשלום בלוח התשלומים לבדו *אינו* מקדם לשלב 8 — ההנחה הקודמת בוטלה,
+  // המעבר טעון אימות עסקי → עצירה בטוחה
+  for (const attrRes of ['Yet to start', null]) {
+    expectUnknown(derive(approved({
+      operations: { hotelsBooked: true, attractionsReservationsStatus: attrRes },
+      payments: { attractions: { status: 'Paid' } },
+    })), `שולם + ${attrRes} → לא working`);
+  }
+  // גם התווית החדשה 'Paid' בעוקב ההזמנות לבדה אינה מעבר מאומת לשלב 8
+  expectUnknown(derive(approved({
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'Paid' },
+  })), 'Attractions Reservations = Paid → לא working');
 
   // מלונות הוזמנו, תשלום אטרקציות פתוח — לפי חלון 90 הימים
   const openWin = { trip: { startDate: '2099-08-15' } };   // 75 ימים → פתוח
@@ -193,10 +202,17 @@ const expectUnknown = (state, label) =>
 // ===== 7. פרשנים חדשים (Phase 1 home) =====
 {
   const withAttr = (label) => customer({ operations: { attractionsReservationsStatus: label } });
-  assert.equal(attractionsReservationsPhase(withAttr('Yet to start')), 'yetToStart');
+  // ארבע התוויות המאומתות מהגדרת העמודה החיה
+  assert.equal(attractionsReservationsPhase(withAttr('Yet to start')), 'notStarted');
+  assert.equal(attractionsReservationsPhase(withAttr('Paid')), 'paid');
   assert.equal(attractionsReservationsPhase(withAttr('In Progress')), 'inProgress');
   assert.equal(attractionsReservationsPhase(withAttr('Completed')), 'completed');
-  assert.equal(attractionsReservationsPhase(withAttr('completed')), 'other');   // רישיות ≠ תווית מאומתת
+  // רישיות/נוסח שונים אינם התווית המאומתת
+  assert.equal(attractionsReservationsPhase(withAttr('paid')), 'other');
+  assert.equal(attractionsReservationsPhase(withAttr('PAID')), 'other');
+  assert.equal(attractionsReservationsPhase(withAttr('in progress')), 'other');
+  assert.equal(attractionsReservationsPhase(withAttr('Complete')), 'other');
+  assert.equal(attractionsReservationsPhase(withAttr('completed')), 'other');
   assert.equal(attractionsReservationsPhase(withAttr('Something else')), 'other');
   assert.equal(attractionsReservationsPhase(withAttr(null)), 'unknown');
   assert.equal(attractionsReservationsPhase(null), 'unknown');

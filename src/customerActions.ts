@@ -138,19 +138,23 @@ export function internalStatusPhase(d: CustomerJourneyData | null): InternalStat
   return 'other';
 }
 
-// Attractions Reservations: שלוש התוויות שנצפו ואומתו בלוח —
-// 'Yet to start' / 'In Progress' / 'Completed'. אותו עיקרון בדיוק כמו
-// internalStatusPhase: השוואה מדויקת תלוית-רישיות (קיצוץ שוליים בלבד);
-// תווית אחרת → 'other', חסר → 'unknown'.
+// Attractions Reservations: ארבע התוויות המאומתות מהגדרת העמודה החיה —
+// 'Yet to start' / 'Paid' / 'In Progress' / 'Completed'. אותו עיקרון
+// בדיוק כמו internalStatusPhase: השוואה מדויקת תלוית-רישיות (קיצוץ
+// שוליים בלבד); תווית אחרת → 'other', חסר → 'unknown'.
+// חשוב: 'paid' הוא ייצוג מצב בלבד — *אין* לו מעבר מסע מאומת. המשמעות
+// העסקית של Paid בעמודה הזו (לעומת תשלום האטרקציות בלוח התשלומים)
+// טרם אומתה, והמנוע אינו מקדם שלב על סמכה.
 export type AttractionsReservationsPhase =
-  | 'yetToStart' | 'inProgress' | 'completed' | 'other' | 'unknown';
+  | 'notStarted' | 'paid' | 'inProgress' | 'completed' | 'other' | 'unknown';
 
 export function attractionsReservationsPhase(
   d: CustomerJourneyData | null,
 ): AttractionsReservationsPhase {
   const label = d?.operations?.attractionsReservationsStatus?.trim() ?? null;
   if (label === null || label === '') return 'unknown';
-  if (label === 'Yet to start') return 'yetToStart';
+  if (label === 'Yet to start') return 'notStarted';
+  if (label === 'Paid') return 'paid';
   if (label === 'In Progress') return 'inProgress';
   if (label === 'Completed') return 'completed';
   return 'other';
