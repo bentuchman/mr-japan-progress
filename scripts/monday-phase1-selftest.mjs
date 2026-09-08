@@ -259,11 +259,16 @@ console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
   assert.equal(hotelsReservationPhase(withOps(ops(null, null))), 'unknown');
   assert.equal(hotelsReservationPhase(null), 'unknown');
 
-  // Internal Status: שלוש תוויות ממופות; תווית קיימת אחרת → other; חסר → unknown
+  // Internal Status: תוויות מאומתות בלבד, תלוי-רישיות. תווית ששונתה
+  // (גם רק ברישיות) לעולם אינה מתפרשת כמצב מאומת → other.
   assert.equal(internalStatusPhase(withOps(ops('Archive'))), 'archive');
+  assert.equal(internalStatusPhase(withOps(ops('archive'))), 'other');    // רישיות שונה ≠ תווית מאומתת
+  assert.equal(internalStatusPhase(withOps(ops('ARCHIVE'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('Archived'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Cancelled'))), 'cancelled');
+  assert.equal(internalStatusPhase(withOps(ops('Cancelled '))), 'cancelled'); // קיצוץ רווחי-שוליים בלבד
   assert.equal(internalStatusPhase(withOps(ops('Abroad'))), 'abroad');
-  assert.equal(internalStatusPhase(withOps(ops(' abroad '))), 'abroad');            // רווחים/רישיות בלבד
+  assert.equal(internalStatusPhase(withOps(ops('abroad'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Waiting for flight - Final'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Final QA'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops(null))), 'unknown');

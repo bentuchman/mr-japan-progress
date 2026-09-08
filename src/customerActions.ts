@@ -124,15 +124,17 @@ export function hotelsReservationPhase(d: CustomerJourneyData | null): HotelsRes
 
 // Internal Status: שלוש תוויות מאומתות + 'other' לכל תווית קיימת אחרת
 // (מצב תפעולי מוכר-כקיים אך לא ממופה) + 'unknown' לחסר. השוואה מדויקת
-// (עם נרמול רווחים/רישיות בלבד) — בלי ניחוש תוויות חדשות.
+// תלוית-רישיות: מקצצים רק רווחי-שוליים (היגיינת תעבורה); "archive" או
+// "ARCHIVE" אינם התווית המאומתת "Archive" — תווית ששונתה ב-Monday לעולם
+// אינה מתפרשת בשקט כמצב עסקי מאומת.
 export type InternalStatusPhase = 'archive' | 'cancelled' | 'abroad' | 'other' | 'unknown';
 
 export function internalStatusPhase(d: CustomerJourneyData | null): InternalStatusPhase {
-  const label = d?.operations?.internalStatus?.trim().toLowerCase() ?? null;
+  const label = d?.operations?.internalStatus?.trim() ?? null;
   if (label === null || label === '') return 'unknown';
-  if (label === 'archive') return 'archive';
-  if (label === 'cancelled') return 'cancelled';
-  if (label === 'abroad') return 'abroad';
+  if (label === 'Archive') return 'archive';
+  if (label === 'Cancelled') return 'cancelled';
+  if (label === 'Abroad') return 'abroad';
   return 'other';
 }
 
