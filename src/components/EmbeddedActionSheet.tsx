@@ -52,6 +52,18 @@ export function embedVerdict(reach: boolean | null, frame: HTMLIFrameElement | n
   return frameShowsRemoteContent(frame) ? 'loaded' : 'error';
 }
 
+// ===== מצב הטמעת Fillout =====
+// onInit של הספק (ready) הוא האישור האמיתי היחיד. load של ה-iframe
+// (frameSeen) מסיר מיד את שכבת הטעינה — כדי לא לכסות טופס תקין — אבל
+// frame חסום (למשל CSP בסביבת ה-Artifact) עדיין יורה load על מסגרת
+// ריקה; לכן frameSeen לבדו אינו נחשב הצלחה לצמיתות: אם ready לא הגיע
+// עד הטיימאאוט הקיים — עוברים למצב הכישלון הקיים, עם "פתיחה בחלון חדש".
+export function filloutVerdict(ready: boolean, frameSeen: boolean, timedOut: boolean): EmbedState {
+  if (ready) return 'loaded';
+  if (frameSeen) return timedOut ? 'error' : 'loaded';
+  return 'loading';
+}
+
 export function EmbeddedActionSheet({ title, url, provider, filloutFormId, onClose, onSubmitted }: Props) {
   const isFillout = provider === 'fillout';
   // ספק Fillout בלי מזהה טופס — תקלת קונפיג, לא ניסיון הטמעה ישירה
@@ -65,16 +77,16 @@ export function EmbeddedActionSheet({ title, url, provider, filloutFormId, onClo
   const frame = useRef<HTMLIFrameElement>(null);
 
   // ===== מתי מוכרז כישלון =====
-  // Fillout: אך ורק לפי מחזור החיים של הספק (onInit). *אין* הכרזת
-  // כישלון — לא על טיימר, לא לפי frame חוצה-מקור שאי אפשר לבדוק,
-  // ולא לפי בדיקת נגישות (שהייתה נכשלת על דומיין מותאם גם כשההטמעה
-  // עצמה תקינה). אם ההטמעה מתעכבת, מוצעת יציאה לחלון חדש לצד מצב
-  // הטעינה — הצעה, לא הכרזת כישלון.
+  // Fillout: ההצלחה האמיתית היא onInit של הספק (ready). load של ה-frame
+  // מסיר מיד את שכבת הטעינה (לא מכסים טופס תקין), אבל אם ready לא הגיע
+  // עד הטיימאאוט — מצב הכישלון הקיים עם "פתיחה בחלון חדש" (ראו
+  // filloutVerdict). בלי בדיקת נגישות: היא הייתה נכשלת על דומיין מותאם
+  // גם כשההטמעה תקינה. ready מאוחר עדיין מחזיר ל-loaded (ריפוי עצמי).
   // תוכן גנרי אחר: כמו קודם — נגישות + בדיקת ה-frame.
   const state: EmbedState = filloutUnconfigured
     ? 'error'
     : isFillout
-      ? ready || frameSeen ? 'loaded' : 'loading'
+      ? filloutVerdict(ready, frameSeen, timedOut)
       : embedVerdict(reach, frame.current, ready || timedOut);
 
   useEffect(() => {
