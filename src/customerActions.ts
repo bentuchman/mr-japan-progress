@@ -122,16 +122,27 @@ export function hotelsReservationPhase(d: CustomerJourneyData | null): HotelsRes
   return 'unknown';
 }
 
-// Internal Status: שלוש תוויות מאומתות + 'other' לכל תווית קיימת אחרת
+// Internal Status: התוויות המאומתות בלבד + 'other' לכל תווית קיימת אחרת
 // (מצב תפעולי מוכר-כקיים אך לא ממופה) + 'unknown' לחסר. השוואה מדויקת
 // תלוית-רישיות: מקצצים רק רווחי-שוליים (היגיינת תעבורה); "archive" או
 // "ARCHIVE" אינם התווית המאומתת "Archive" — תווית ששונתה ב-Monday לעולם
 // אינה מתפרשת בשקט כמצב עסקי מאומת.
-export type InternalStatusPhase = 'archive' | 'cancelled' | 'abroad' | 'other' | 'unknown';
+// אזור פגישה↔שינויים (אימות פרודקשן): 'Waiting for meeting' = הלקוח
+// באזור הפגישה; 'Changes window open' = חלון טופס השינויים שאחריה.
+export type InternalStatusPhase =
+  | 'waitingForMeeting'
+  | 'changesWindowOpen'
+  | 'abroad'
+  | 'archive'
+  | 'cancelled'
+  | 'other'
+  | 'unknown';
 
 export function internalStatusPhase(d: CustomerJourneyData | null): InternalStatusPhase {
   const label = d?.operations?.internalStatus?.trim() ?? null;
   if (label === null || label === '') return 'unknown';
+  if (label === 'Waiting for meeting') return 'waitingForMeeting';
+  if (label === 'Changes window open') return 'changesWindowOpen';
   if (label === 'Archive') return 'archive';
   if (label === 'Cancelled') return 'cancelled';
   if (label === 'Abroad') return 'abroad';

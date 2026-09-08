@@ -193,12 +193,32 @@ export function deriveJourneyRuntimeState(
   // lifecycle 'other' (תווית תפעולית קיימת אך לא ממופה, למשל Final QA)
   // או 'unknown' (חסר) — אינם קובעים עמדה; ממשיכים לראיות טרום-הטיול.
 
-  // 3. טרום-הטיול — האות המאוחר המאומת גובר (Plan Approval של מור)
+  // 3. טרום-הטיול — האות המאוחר המאומת גובר (Plan Approval של מור).
+  // תווית אזור ב-Internal Status שנשארה מאחור אינה מבטלת הגשה/אישור.
   const plan = planChangesPhase(customer);
   if (plan === 'approved') return deriveSelectionsRegion(customer, today, pkg);
   if (plan === 'inProgress') {
     return resolved(pkg, 'changes-processing', 'working',
       'Plan Approval = Changes form submitted — הצוות מטמיע את השינויים');
   }
+
+  // 3א. גבול שלב 3↔4 — תוויות האזור המאומתות ב-Internal Status.
+  // מועד פגישה שחלף לבדו לעולם אינו מפיק שלב 4; רק התווית קובעת.
+  if (lifecycle === 'changesWindowOpen') {
+    return resolved(pkg, 'changes-form', 'open',
+      'Internal Status = Changes window open — חלון טופס השינויים פתוח');
+  }
+  if (lifecycle === 'waitingForMeeting') {
+    const scheduledAt = customer.meeting.scheduledAt;
+    if (scheduledAt !== null && isoDatePassed(today, scheduledAt) === false) {
+      return resolved(pkg, 'meeting', 'scheduled',
+        'Internal Status = Waiting for meeting; פגישה קבועה להיום או לעתיד');
+    }
+    // אין מועד עתידי תקף (חסר / חלף / שבור) — לפי התווית עדיין באזור
+    // הפגישה, כלומר נדרש תיאום: תת-המצב הקיים 'upcoming'.
+    return resolved(pkg, 'meeting', 'upcoming',
+      'Internal Status = Waiting for meeting; אין מועד פגישה עתידי תקף');
+  }
+
   return deriveEarlyRegion(customer, today, pkg);
 }

@@ -269,6 +269,16 @@ console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
   assert.equal(internalStatusPhase(withOps(ops('Cancelled '))), 'cancelled'); // קיצוץ רווחי-שוליים בלבד
   assert.equal(internalStatusPhase(withOps(ops('Abroad'))), 'abroad');
   assert.equal(internalStatusPhase(withOps(ops('abroad'))), 'other');
+  // תוויות אזור הפגישה↔שינויים (אימות פרודקשן) — מדויקות ותלויות-רישיות
+  assert.equal(internalStatusPhase(withOps(ops('Waiting for meeting'))), 'waitingForMeeting');
+  assert.equal(internalStatusPhase(withOps(ops('Changes window open'))), 'changesWindowOpen');
+  assert.equal(internalStatusPhase(withOps(ops(' Waiting for meeting '))), 'waitingForMeeting'); // קיצוץ שוליים בלבד
+  assert.equal(internalStatusPhase(withOps(ops('waiting for meeting'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('WAITING FOR MEETING'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('changes window open'))), 'other');
+  // תוויות שנצפו אך מחוץ לתחום התיקון — נשארות other בכוונה
+  assert.equal(internalStatusPhase(withOps(ops('Hotels Reservations'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('Stuck'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Waiting for flight - Final'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Final QA'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops(null))), 'unknown');

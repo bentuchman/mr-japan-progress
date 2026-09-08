@@ -101,6 +101,39 @@ const expectUnknown = (state, label) =>
   console.log('runtime: שלבים 2–4 ✓');
 }
 
+// ===== 3ב. גבול שלב 3↔4 — תוויות האזור המאומתות ב-Internal Status =====
+{
+  // Waiting for meeting: פגישה עתידית/היום → scheduled; אחרת → upcoming
+  expectStage(derive(customer({ operations: { internalStatus: 'Waiting for meeting' }, meeting: { scheduledAt: '2099-06-10T19:00:00' } })),
+    'meeting', 'scheduled', 'Waiting for meeting + מועד עתידי');
+  expectStage(derive(customer({ operations: { internalStatus: 'Waiting for meeting' }, meeting: { scheduledAt: TODAY } })),
+    'meeting', 'scheduled', 'Waiting for meeting + היום');
+  expectStage(derive(customer({ operations: { internalStatus: 'Waiting for meeting' } })),
+    'meeting', 'upcoming', 'Waiting for meeting בלי מועד');
+  expectStage(derive(customer({ operations: { internalStatus: 'Waiting for meeting' }, meeting: { scheduledAt: '2099-05-01' } })),
+    'meeting', 'upcoming', 'Waiting for meeting + מועד שחלף → נדרש תיאום');
+  // התווית קובעת את האזור גם כשאותות מוקדמים חסרים (תשלום לא ידוע)
+  expectStage(derive(customer({ operations: { internalStatus: 'Waiting for meeting' }, payments: { service: { status: 'Pending' } } })),
+    'meeting', 'upcoming', 'Waiting for meeting גובר על סולם התשלום');
+
+  // Changes window open → שלב 4 פתוח
+  expectStage(derive(customer({ operations: { internalStatus: 'Changes window open' } })),
+    'changes-form', 'open', 'Changes window open');
+  // מועד פגישה שחלף *בלי* התווית → נשאר unknown (לא ממציאים שלב 4)
+  expectUnknown(derive(customer({ payments: { service: { status: 'Paid' } }, meeting: { scheduledAt: '2099-05-01T19:00:00' } })),
+    'מועד חלף בלי Changes window open');
+  // Plan Approval המאוחר גובר על תווית אזור שנשארה מאחור
+  expectStage(derive(customer({ operations: { internalStatus: 'Changes window open' }, planApprovalStatus: 'Changes form submitted' })),
+    'changes-processing', 'working', 'הגשה גוברת על תווית אזור');
+  expectStage(derive(customer({ operations: { internalStatus: 'Waiting for meeting' }, planApprovalStatus: 'Approved', trip: { startDate: '2099-06-20' } })),
+    'selections', 'open', 'אישור גובר על תווית אזור');
+  // 'Sent for review' אינו מפורש — לא שלב 5 ולא קידום אחר
+  const sent = derive(customer({ operations: { internalStatus: 'Changes window open' }, planApprovalStatus: 'Sent for review' }));
+  expectStage(sent, 'changes-form', 'open', 'Sent for review אינו שלב 5');
+  expectUnknown(derive(customer({ planApprovalStatus: 'Sent for review' })), 'Sent for review לבדו');
+  console.log('runtime: גבול 3↔4 לפי Internal Status ✓');
+}
+
 // ===== 4. שלב 5 — Plan Approval של מור =====
 {
   expectStage(derive(customer({ planApprovalStatus: 'Changes form submitted' })), 'changes-processing', 'working', 'שלב 5');
@@ -168,8 +201,8 @@ const expectUnknown = (state, label) =>
 // ===== 6. דטרמיניזם + תקפות כל תוצאה מול journeyConfig =====
 {
   const cases = [];
-  for (const internalStatus of [null, 'Abroad', 'Archive', 'Cancelled', 'Final QA'])
-    for (const plan of [null, 'Changes form submitted', 'Approved'])
+  for (const internalStatus of [null, 'Abroad', 'Archive', 'Cancelled', 'Final QA', 'Waiting for meeting', 'Changes window open'])
+    for (const plan of [null, 'Changes form submitted', 'Approved', 'Sent for review'])
       for (const hotels of [null, true, false])
         for (const service of [null, 'Paid', 'Pending'])
           for (const startDate of [null, '2099-06-20', '2099-12-01'])
