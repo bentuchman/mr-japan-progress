@@ -135,13 +135,16 @@ function deriveSelectionsRegion(
     }
 
     // advance-paid (מקור האמת לתשלום) + מצב עבודת ההזמנות המאומת:
-    //   Yet to start — שולם, ההזמנה בתור הצוות; In Progress — בביצוע.
-    // בשני המקרים הכדור אצל צוות מר יפן → שלב 8.
-    if (paymentStageAdvancePaid(pay) && (attrRes === 'inProgress' || attrRes === 'notStarted')) {
+    //   Yet to start — שולם, ההזמנה בתור הצוות → תת-מצב 'queued'
+    //   In Progress  — הצוות מזמין בפועל     → תת-מצב 'working'
+    // בשני המקרים הכדור אצל צוות מר יפן → שלב 8; הקופי מבחין ביניהם.
+    if (paymentStageAdvancePaid(pay) && attrRes === 'inProgress') {
       return resolved(pkg, 'attractions-booking', 'working',
-        attrRes === 'inProgress'
-          ? 'advance-paid והזמנת האטרקציות בביצוע (In Progress)'
-          : 'advance-paid — ההזמנה בתור הצוות (Yet to start)');
+        'advance-paid והזמנת האטרקציות בביצוע (In Progress)');
+    }
+    if (paymentStageAdvancePaid(pay) && attrRes === 'notStarted') {
+      return resolved(pkg, 'attractions-booking', 'queued',
+        'advance-paid — ההזמנה בתור הצוות (Yet to start)');
     }
     if (paymentStageAdvancePaid(pay)) {
       return unknown('advance-paid אך מצב עבודת ההזמנות אינו זמין/מוכר — אין שלב מאומת');

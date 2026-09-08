@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import App from '../App';
 import { IPhoneDemoFrame } from './IPhoneDemoFrame';
 import { deriveJourneyRuntimeState } from '../journeyRuntime';
+import { packageFromPlan } from '../customerActions';
 import { setCustomerJourney } from '../customerSession';
 import { VALIDATION_STATES } from '../journeyValidationStates';
 
@@ -31,23 +32,34 @@ export function JourneyValidationView({ onExit }: { onExit: () => void }) {
   }, [fixture]);
   const stageId = derived.kind === 'resolved' ? derived.currentStageId : undefined;
   const substateId = derived.kind === 'resolved' ? derived.currentSubstateId : undefined;
+  // חבילת הטלפונים נגזרת מ-Plan של ה-fixture — כמו במנוע עצמו
+  const phonePkg = packageFromPlan(fixture) ?? 'advanced';
+  const groups = [...new Set(VALIDATION_STATES.map((s) => s.group))];
 
   return (
     <div className="compare-canvas">
       <button className="compare-exit" onClick={onExit}>✕ יציאה מאימות המסע</button>
 
-      {/* בורר המצבים — פקדי אימות, מחוץ ל-UI של הלקוח */}
-      <div className="validate-bar" role="toolbar" aria-label="מצבי אימות המסע">
-        {VALIDATION_STATES.map((s) => (
-          <button
-            key={s.id}
-            className={`validate-btn${s.id === stateId ? ' active' : ''}`}
-            onClick={() => setStateId(s.id)}
-          >
-            {s.label}
-          </button>
-        ))}
+      {/* בורר תרחישי QA — פקדי אימות מחוץ ל-UI של הלקוח. אלו תרחישי
+          בדיקה מקובצים, לא 14 שלבי מסע ולא ציר זמן קבוע. */}
+      <div className="validate-note" dir="rtl">
+        תרחישי בדיקה של מנוע המסע — קבוצת "בחירות והזמנות" מכילה מצבים
+        מקבילים (למשל: בקשת תשלום אטרקציות יכולה להיות פעילה במקביל לבחירת המלונות)
       </div>
+      {groups.map((g) => (
+        <div key={g} className="validate-group" role="toolbar" aria-label={g} dir="rtl">
+          <span className="validate-group-title">{g}</span>
+          {VALIDATION_STATES.filter((s) => s.group === g).map((s) => (
+            <button
+              key={s.id}
+              className={`validate-btn${s.id === stateId ? ' active' : ''}`}
+              onClick={() => setStateId(s.id)}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      ))}
       <div className="validate-reason" dir="rtl">
         {derived.kind === 'resolved'
           ? `המנוע: ${derived.currentStageId} / ${derived.currentSubstateId} — ${derived.reason}`
@@ -67,6 +79,7 @@ export function JourneyValidationView({ onExit }: { onExit: () => void }) {
               fixedTimeScenario="moreThanThreeMonths"
               initialStageId={stageId}
               initialSubstateId={substateId}
+              initialPackage={phonePkg}
             />
           </IPhoneDemoFrame>
         </div>
@@ -82,6 +95,7 @@ export function JourneyValidationView({ onExit }: { onExit: () => void }) {
               fixedTimeScenario="lessThanThreeMonths"
               initialStageId={stageId}
               initialSubstateId={substateId}
+              initialPackage={phonePkg}
             />
           </IPhoneDemoFrame>
         </div>

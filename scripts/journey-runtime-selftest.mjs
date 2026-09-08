@@ -172,10 +172,11 @@ const expectUnknown = (state, label) =>
     'selections', 'all-ready', 'all-ready בסיסי');
 
   // ===== שלב 8 — advance-paid (מקור האמת) + מצב עבודת ההזמנות =====
-  // CASE H: advance-paid + Yet to start → שולם, ההזמנה בתור הצוות → שלב 8
+  // CASE H: advance-paid + Yet to start → שולם, בתור הצוות → תת-מצב queued
+  // (נבדל מ-working: "התשלום הושלם. ההזמנה ממתינה לטיפול צוות מר יפן.")
   expectStage(derive(approved({
     operations: { hotelsBooked: true, attractionsReservationsStatus: 'Yet to start', paymentStageInternal: 'advance-paid' },
-  })), 'attractions-booking', 'working', 'CASE H: advance-paid + Yet to start');
+  })), 'attractions-booking', 'queued', 'CASE H: advance-paid + Yet to start');
   // CASE I: advance-paid + In Progress → הצוות עובד על ההזמנות
   expectStage(derive(approved({
     operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress', paymentStageInternal: 'advance-paid' },

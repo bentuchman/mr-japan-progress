@@ -299,6 +299,14 @@ export const STAGES: Stage[] = [
         message: 'אנחנו מטפלים בהזמנת האטרקציות שבחרתם.',
       },
       {
+        // התשלום הושלם אך הצוות טרם התחיל (Yet to start) — אותה שפה
+        // צוותית קיימת, קופי שמבחין בין "בתור" ל"בביצוע"
+        id: 'queued',
+        demoLabel: 'ממתין לטיפול',
+        ownership: 'team',
+        message: 'התשלום הושלם. ההזמנה ממתינה לטיפול צוות מר יפן.',
+      },
+      {
         id: 'all-ready',
         demoLabel: 'הכול מוכן לטיול',
         ownership: 'none',
@@ -347,8 +355,8 @@ export const STAGES: Stage[] = [
         ownership: 'none',
         message: 'תודה ששיתפתם אותנו בחוויה שלכם.',
         confirms: ['המשוב שלכם התקבל'],
-        viewLabel: 'צפייה במשוב',
-        viewOpens: 'feedback-view',
+        // בלי "צפייה במשוב": אין מסלול אמיתי לצפייה במשוב שהוגש —
+        // sheet 'feedback-view' מעולם לא מומש, וה-CTA היה מת. לא ממציאים.
       },
     ],
   },

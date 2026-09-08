@@ -23,7 +23,8 @@ import { LinkDiagnostics } from './components/LinkDiagnostics';
 import { CardDecor } from './components/CardDecor';
 import { useCustomerJourney } from './customerSession';
 import {
-  customerActionStatus, meetingDateLine, rendererForUrl, resolveCustomerAction,
+  customerActionStatus, meetingDateLine, paymentStageAdvancePaid, paymentStagePhase,
+  rendererForUrl, resolveCustomerAction,
 } from './customerActions';
 import { DemoControls } from './components/DemoControls';
 
@@ -59,14 +60,15 @@ interface AppProps {
   fixedTimeScenario?: TimeToTripScenario;
   initialStageId?: string;
   initialSubstateId?: string;
+  initialPackage?: PackageId;   // חבילת הפתיחה (אימות המסע: נגזרת מ-Plan)
 }
 
-export default function App({ phoneDemo = false, fixedTimeScenario, initialStageId, initialSubstateId }: AppProps) {
+export default function App({ phoneDemo = false, fixedTimeScenario, initialStageId, initialSubstateId, initialPackage }: AppProps) {
   // נתוני הלקוח הנוכחי מ-Monday (שלב 2). null = מצב הדמו הקיים, אחד
   // לאחד. עם לקוח טעון, פעולות עם dataKey שואבות ממנו את הכתובת ואת
   // הסטטוס — והמסע, השלבים וה-preview ממשיכים להתנהג בדיוק כמו היום.
   const customer = useCustomerJourney();
-  const [pkg, setPkg] = useState<PackageId>('advanced');
+  const [pkg, setPkg] = useState<PackageId>(initialPackage ?? 'advanced');
   // currentStage — היכן הלקוח נמצא בפועל. לעולם לא משתנה מלחיצה על תחנה.
   const [currentStageId, setCurrentStageId] = useState(initialStageId ?? 'meeting');
   // previewStage — איזה שלב מודגם כרגע (null = מציגים את השלב בפועל).
@@ -103,7 +105,13 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   // V ב-Monday. כל פעולה עצמאית; לא מקודד בתוך currentStageId.
   const [hotelTaskStatus, setHotelTaskStatus] = useState<ActionStatus>('pending');
   const [attractionsTaskStatus, setAttractionsTaskStatus] = useState<ActionStatus>('pending');
-  const attractionsAvailable = timeScenario === 'lessThanThreeMonths' || windowOpened;
+  // מצב עסקי מפורש גובר על שער-הזמן הגנרי: אם payment-stage-internal
+  // אומר שבקשת תשלום האטרקציות כבר נשלחה (או שולמה) — הפעולה קיימת,
+  // גם כשהתרחיש הוא ">3 חודשים". בלי מצב מפורש — הכלל הקיים נשמר.
+  const paymentStage = paymentStagePhase(customer);
+  const attractionsRequested = paymentStage === 'advanceSent' || paymentStageAdvancePaid(paymentStage);
+  const attractionsAvailable =
+    attractionsRequested || timeScenario === 'lessThanThreeMonths' || windowOpened;
 
   // שם השלב האדפטיבי נגזר מהקונפיג + מצב חלון התשלום
   const stages = useMemo(() => {

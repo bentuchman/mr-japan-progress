@@ -16,6 +16,7 @@ const emptyPayment = () =>
   ({ status: null, paymentUrl: null, paidAt: null, receiptUrl: null });
 
 interface FixtureOverrides {
+  plan?: string;
   internalStatus?: string | null;
   paymentStageInternal?: string | null;
   planApprovalStatus?: string | null;
@@ -48,7 +49,7 @@ function fixture(o: FixtureOverrides): CustomerJourneyData {
       internalStatus: o.internalStatus ?? null,
       hotelsBooked: o.hotelsBooked ?? null,
       attractionsReservationsStatus: o.attractionsReservationsStatus ?? null,
-      plan: 'Advanced',
+      plan: o.plan ?? 'Advanced',
       paymentStageInternal: o.paymentStageInternal ?? null,
     },
     payments: { service: emptyPayment(), attractions: emptyPayment() },
@@ -64,69 +65,78 @@ const addDays = (todayIso: string, days: number): string => {
 
 export interface ValidationState {
   id: string;
-  label: string;                                     // תווית בורר המצבים (מחוץ לטלפונים)
+  label: string;                                     // תווית בורר התרחישים (מחוץ לטלפונים)
+  group: string;                                     // קבוצת תרחישים — לא ציר זמן קבוע
   build: (today: string) => CustomerJourneyData;     // ה-fixture, יחסית ל"היום"
   extras?: JourneyRuntimeExtras;                     // ראיות חיצוניות (הגשת משוב)
 }
 
-// 14 המצבים המאומתים — בסדר המסע. כל מצב בנוי אך ורק מהאותות שאומתו.
+// תרחישי QA — לא 14 שלבי מסע ולא רצף ליניארי: בקבוצת הבחירות
+// וההזמנות אלו מצבים מקבילים/וריאנטים (למשל: בקשת תשלום אטרקציות
+// יכולה להיות פעילה במקביל לבחירת המלונות). כל תרחיש בנוי אך ורק
+// מהאותות שאומתו מול פרודקשן.
+const G1 = 'תוכנית ותשלום';
+const G2 = 'פגישה ושינויים';
+const G3 = 'בחירות והזמנות — תרחישים מקבילים, לא רצף';
+const G4 = 'בטיול ואחרי';
 export const VALIDATION_STATES: ValidationState[] = [
-  { id: 'plan-building', label: '1 · תוכנית בבנייה',
+  { id: 'plan-building', label: '1 · תוכנית בבנייה', group: G1,
     build: () => fixture({}) },
-  { id: 'service-due', label: '2 · תשלום שירות נדרש',
+  { id: 'service-due', label: '2 · תשלום שירות נדרש', group: G1,
     build: () => fixture({ paymentStageInternal: 'service-sent' }) },
-  { id: 'meeting', label: '3 · שולם — פגישה נקבעה',
+  { id: 'meeting', label: '3 · שולם — פגישה נקבעה', group: G2,
     build: (today) => fixture({
       paymentStageInternal: 'service-paid',
       internalStatus: 'Waiting for meeting',
       scheduledAt: `${addDays(today, 3)}T19:00:00`,
     }) },
-  { id: 'changes-window', label: '4 · חלון השינויים פתוח',
+  { id: 'changes-window', label: '4 · חלון השינויים פתוח', group: G2,
     build: () => fixture({ paymentStageInternal: 'service-paid', internalStatus: 'Changes window open' }) },
-  { id: 'hotels-selection', label: '5 · בחירת מלונות',
+  { id: 'hotels-selection', label: '5 · בחירת מלונות (אין בקשת תשלום)', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', internalStatus: 'Hotels catalog',
       hotelsBooked: false, startDate: addDays(today, 60),
     }) },
-  { id: 'hotels-reservations', label: '6 · מלונות בהזמנה (צוות)',
+  { id: 'hotels-reservations', label: '6 · מלונות בהזמנה (צוות)', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', internalStatus: 'Hotels Reservations',
       hotelsBooked: false, startDate: addDays(today, 55),
     }) },
-  { id: 'attractions-due', label: '7 · תשלום אטרקציות נדרש',
+  { id: 'attractions-due', label: '7 · advance-sent — תשלום אטרקציות נדרש', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', hotelsBooked: true,
       paymentStageInternal: 'advance-sent', startDate: addDays(today, 50),
     }) },
-  { id: 'attractions-queued', label: '8 · אטרקציות — בתור הצוות',
+  { id: 'attractions-queued', label: '8 · שולם — ממתין לטיפול (Yet to start)', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', hotelsBooked: true,
       paymentStageInternal: 'advance-paid', attractionsReservationsStatus: 'Yet to start',
       startDate: addDays(today, 45),
     }) },
-  { id: 'attractions-working', label: '9 · אטרקציות — בביצוע',
+  { id: 'attractions-working', label: '9 · שולם — בביצוע (In Progress)', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', hotelsBooked: true,
       paymentStageInternal: 'advance-paid', attractionsReservationsStatus: 'In Progress',
       startDate: addDays(today, 40),
     }) },
-  { id: 'attractions-done', label: '10 · אטרקציות הוזמנו',
+  { id: 'all-ready', label: '10 · הכול הוזמן — מוכן לטיול', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', hotelsBooked: true,
       paymentStageInternal: 'advance-paid', attractionsReservationsStatus: 'Completed',
       startDate: addDays(today, 30),
     }) },
-  { id: 'all-ready', label: '11 · הכול מוכן לטיול',
+  { id: 'all-ready-basic', label: '11 · הכול מוכן — חבילת בסיס', group: G3,
     build: (today) => fixture({
+      plan: 'Basic',
       planApprovalStatus: 'Approved', hotelsBooked: true,
       paymentStageInternal: 'advance-paid', attractionsReservationsStatus: 'Completed',
       startDate: addDays(today, 7),
     }) },
-  { id: 'in-japan', label: '12 · ביפן',
+  { id: 'in-japan', label: '12 · ביפן', group: G4,
     build: () => fixture({ internalStatus: 'Abroad' }) },
-  { id: 'feedback-open', label: '13 · משוב פתוח',
+  { id: 'feedback-open', label: '13 · משוב פתוח', group: G4,
     build: () => fixture({ internalStatus: 'Archive' }) },
-  { id: 'feedback-submitted', label: '14 · המשוב הוגש',
+  { id: 'feedback-submitted', label: '14 · המשוב הוגש', group: G4,
     build: () => fixture({ internalStatus: 'Archive' }),
     extras: { feedbackSubmitted: true } },
 ];
