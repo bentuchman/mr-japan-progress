@@ -211,7 +211,7 @@ export const STAGES: Stage[] = [
         id: 'open',
         demoLabel: 'פתוח למילוי',
         ownership: 'client',
-        message: 'עכשיו אפשר לדייק את התוכנית.',
+        message: 'זה הזמן לעבור על התוכנית ולשלוח לנו את השינויים.',
         dateLine: 'פתוח עד 18/08',
         actions: ['changes-form'],
       },
@@ -296,7 +296,7 @@ export const STAGES: Stage[] = [
         id: 'working',
         demoLabel: 'בהזמנה',
         ownership: 'team',
-        message: 'אנחנו מטפלים באטרקציות שבחרתם.',
+        message: 'אנחנו מטפלים בהזמנת האטרקציות שבחרתם.',
       },
       {
         id: 'all-ready',
@@ -327,7 +327,7 @@ export const STAGES: Stage[] = [
   },
   {
     id: 'feedback',
-    name: 'מילוי פידבק',
+    name: 'משוב על הטיול',
     icon: '💬',
     packages: ALL,
     historyAsset: 'המשוב שלך',
@@ -469,13 +469,13 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     // מצב ב' — הפגישה קיימת; היעד הוא קישור ה-Zoom של הלקוח (חיצוני)
     id: 'meeting', stageId: 'meeting',
-    icon: '📅', title: 'פרטי הפגישה', cta: 'לכניסה', ctaFull: 'לכניסה לפגישה',
+    icon: '📅', title: 'כניסה לפגישה', cta: 'לכניסה', ctaFull: 'כניסה לפגישה',
     dataKey: 'meeting',
     openMode: 'external', url: null,
   },
   {
     id: 'consultation-reschedule', stageId: 'meeting',
-    icon: '🕒', title: 'שינוי או ביטול', cta: 'לשינוי', ctaFull: 'שינוי או ביטול',
+    icon: '🕒', title: 'שינוי זמן הפגישה', cta: 'לשינוי', ctaFull: 'שינוי זמן הפגישה',
     dataKey: 'meetingReschedule',
     provider: 'fillout', openMode: null, url: DEMO_ACTION_LINKS.consultationReschedule,
     filloutFormId: 'tuqZnYRAxeus',

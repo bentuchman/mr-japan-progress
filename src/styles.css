@@ -554,6 +554,21 @@ html.compare-mode { background: #eceae5; }
   font-size: 12.5px; font-weight: 600; border-radius: 999px; padding: 7px 16px;
 }
 .compare-exit:hover { color: var(--accent-deep); border-color: var(--accent); }
+/* בורר מצבי אימות המסע — פקדי בדיקה מחוץ לטלפונים, בשפת הקנבס הקיימת */
+.validate-bar {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+  max-width: 1040px; margin: 0 auto 10px; direction: rtl;
+}
+.validate-btn {
+  border: 1px solid #d8d4cc; background: #fff; color: #55565f;
+  font-size: 12px; font-weight: 600; border-radius: 999px; padding: 6px 13px;
+}
+.validate-btn:hover { color: var(--accent-deep); border-color: var(--accent); }
+.validate-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.validate-reason {
+  text-align: center; font-size: 12px; color: #8a8f9c; margin: 0 auto 22px;
+  max-width: 860px; direction: rtl;
+}
 /* לפי הרפרנס: תרחיש 1 משמאל, תרחיש 2 מימין — הגריד LTR, התוכן נשאר RTL */
 .compare-grid { display: flex; justify-content: center; align-items: flex-start; gap: 72px; flex-wrap: wrap; direction: ltr; }
 .compare-col { display: flex; flex-direction: column; align-items: center; gap: 16px; direction: rtl; }

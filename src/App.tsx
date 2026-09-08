@@ -52,13 +52,16 @@ type SheetOpen = SheetKind | 'full';
 // phoneDemo: מצב הצגת iPhone — ניווט תצוגה במחוות (swipe/drag/edge-tap).
 // fixedTimeScenario: תצוגת ההשוואה מקבעת את תרחיש הזמן למופע (state עצמאי לכל מופע).
 // initialStageId: שלב הפתיחה של המופע (בהשוואה: השלב האדפטיבי).
+// initialSubstateId: תת-המצב של שלב הפתיחה (תצוגת אימות המסע — המצב
+// המדומה שנגזר מהמנוע). אינו משנה שום התנהגות קיימת כשאינו מסופק.
 interface AppProps {
   phoneDemo?: boolean;
   fixedTimeScenario?: TimeToTripScenario;
   initialStageId?: string;
+  initialSubstateId?: string;
 }
 
-export default function App({ phoneDemo = false, fixedTimeScenario, initialStageId }: AppProps) {
+export default function App({ phoneDemo = false, fixedTimeScenario, initialStageId, initialSubstateId }: AppProps) {
   // נתוני הלקוח הנוכחי מ-Monday (שלב 2). null = מצב הדמו הקיים, אחד
   // לאחד. עם לקוח טעון, פעולות עם dataKey שואבות ממנו את הכתובת ואת
   // הסטטוס — והמסע, השלבים וה-preview ממשיכים להתנהג בדיוק כמו היום.
@@ -68,7 +71,9 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
   const [currentStageId, setCurrentStageId] = useState(initialStageId ?? 'meeting');
   // previewStage — איזה שלב מודגם כרגע (null = מציגים את השלב בפועל).
   const [previewStageId, setPreviewStageId] = useState<string | null>(null);
-  const [subSel, setSubSel] = useState<Record<string, string>>({});
+  const [subSel, setSubSel] = useState<Record<string, string>>(
+    () => (initialStageId && initialSubstateId ? { [initialStageId]: initialSubstateId } : {}),
+  );
   const [sheet, setSheet] = useState<SheetOpen>('none');
   // פעולה שנפתחת מוטמעת בתוך האפליקציה (כתובת אטומה מהקונפיג).
   // מצב תצוגה בלבד — אינו נוגע ב-currentStage/previewStage ובהתקדמות.
