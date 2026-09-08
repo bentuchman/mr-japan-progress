@@ -1,31 +1,27 @@
 // ============================================================
-// שלב 2 (Phase 2) — מנוע מצב המסע בזמן-ריצה.
+// מנוע מצב המסע בזמן-ריצה — גזירה טהורה בלבד:
+//   CustomerJourneyData + "היום" (+ חבילה, + ראיות נלוות) → עמדת הלקוח
 //
-// גזירה טהורה בלבד:
-//   CustomerJourneyData + "היום" (+ חבילה) → עמדת הלקוח במסע הקיים
+// המנוע *אינו* מחובר ל-UI: currentStageId באפליקציה נשאר דמו/מקומי עד
+// חיווט הזהות (שלב 3). אין כאן React, רשת, מזהי עמודות Monday או
+// תופעות-לוואי. לחיצה על תחנה במסע ממשיכה לגעת אך ורק ב-previewStageId.
 //
-// המנוע *אינו* מחובר ל-UI: currentStageId באפליקציה נשאר דמו/מקומי
-// עד שלב 3. אין כאן React, רשת, מזהי עמודות Monday או תופעות-לוואי.
+// עקרון-העל — לעולם לא מנחשים: כל פרשנות עסקית חיה בפרשני
+// customerActions בלבד; המנוע רק משלב אותם לפי הכללים שאומתו מול
+// פרודקשן. ראיה חסרה/סותרת/לא-מאומתת → 'unknown' מפורש עם סיבה.
 //
-// עקרון-העל — לעולם לא מנחשים:
-//   כל פרשנות עסקית חיה בפרשני שלב 1 (customerActions) בלבד; המנוע רק
-//   משלב אותם לפי כללי המסע שאושרו. ראיה חסרה/סותרת/לא-מאומתת →
-//   תוצאה מפורשת 'unknown' עם סיבה — לא עמדת מסע מומצאת.
-//
-// סדר הקדימויות (מהחזק לחלש):
-//   1. Cancelled — מצב סופני. לעולם אינו "השלמת מסע", ושום שלב
-//      (כולל משוב) אינו גובר עליו.
-//   2. תוויות מחזור-החיים המאומתות: Abroad → "ביפן"; Archive → "משוב"
-//      (פתוח בלבד — אין למנוע שום אות הגשה מאומת, ולכן 'submitted'
-//      נשאר דמו-בלבד).
-//   3. שלבי טרום-הטיול, מהאות המאוחר לחלש: Plan Approval (אישור מור)
-//      ואז תשלום השירות והפגישה.
-//
-// מעברים שאין להם אות מאומת אינם ממומשים בכוונה (ראו הדוח):
-//   1→2 (מוכנות התוכנית). המנוע עוצר על העמדה המאוחרת ביותר שיש לה
-//   ראיה. הגבולות 3↔4 ו-6↔7 נסגרו עם תוויות Internal Status מאומתות:
-//   Waiting for meeting / Changes window open / Hotels catalog /
-//   Hotels Reservations (האחרונות — Advanced בלבד).
+// מקורות האמת המאומתים:
+//   תשלומים  — payment-stage-internal (color_mm145w28). לעולם לא עמודות
+//              טריגר של אוטומציה; לוח התשלומים נשאר נסיגה בלבד.
+//   גבולות   — תוויות Internal Status: Waiting for meeting /
+//              Changes window open / Hotels catalog / Hotels Reservations
+//   מחזור חיים — Abroad / Archive / Cancelled (סופני)
+//   שלב 5    — Plan Approval של מור (planChangesPhase)
+//   מלונות   — checkbox המלונות הוא אות *השלמה* בלבד, לא הפעלת שלב 7
+//   אטרקציות — advance-paid (תשלום) + Attractions Reservations (עבודה):
+//              שני מצבים שונים; 'Yet to start' אינו "לא שולם"
+//   משוב     — הגשה מוכחת רק ע"י relation בלוח ה-Feedbacks (extras)
+//   חבילה    — Plan (status8) דרך packageFromPlan
 // ============================================================
 
 import type { CustomerJourneyData } from './monday/customerJourneyData.ts';
@@ -37,6 +33,10 @@ import {
   internalStatusPhase,
   isPaid,
   isoDatePassed,
+  packageFromPlan,
+  paymentStageAdvancePaid,
+  paymentStagePhase,
+  paymentStageServicePaid,
   paymentWindowOpen,
   planChangesPhase,
 } from './customerActions.ts';
@@ -51,11 +51,17 @@ export type JourneyRuntimeState =
   | { kind: 'unknown'; reason: string }
   | { kind: 'terminal'; terminalState: 'cancelled'; reason: string };
 
+// ראיות שנאספות מחוץ לאייטם הלקוח (שאילתה נפרדת, לפי דרישה):
+//   feedbackSubmitted — קיום אייטם משוב מקושר (getFeedbackSubmitted).
+//   undefined/null = לא נבדק / לא ידוע — לעולם אינו נחשב "הוגש".
+export interface JourneyRuntimeExtras {
+  feedbackSubmitted?: boolean | null;
+}
+
 const unknown = (reason: string): JourneyRuntimeState => ({ kind: 'unknown', reason });
 
 // כל תוצאה "resolved" מאומתת מול journeyConfig: שלב או תת-מצב שאינם
-// קיימים לחבילה הזו לעולם אינם מוחזרים — נקבל 'unknown' מפורש במקום
-// עמדה שה-UI לא יודע להציג.
+// קיימים לחבילה הזו לעולם אינם מוחזרים.
 function resolved(
   pkg: PackageId,
   stageId: string,
@@ -72,6 +78,31 @@ function resolved(
   return { kind: 'resolved', currentStageId: stageId, currentSubstateId: substateId, reason };
 }
 
+// ===== שלב 3 — ישות הפגישה (תת-מצב לפי מועד) =====
+// regionConfirmed: האם תווית Internal Status מאומתת ('Waiting for
+// meeting') מעגנת את אזור הפגישה. בלעדיה, מועד שחלף אינו הוכחה שהפגישה
+// התקיימה *או* שלא — מעבר 3↔4 נשאר לא-ידוע (רק התווית סוגרת אותו).
+function deriveMeetingStage(
+  d: CustomerJourneyData,
+  today: string,
+  pkg: PackageId,
+  reasonPrefix: string,
+  regionConfirmed: boolean,
+): JourneyRuntimeState {
+  const scheduledAt = d.meeting.scheduledAt;
+  if (scheduledAt !== null && isoDatePassed(today, scheduledAt) === false) {
+    return resolved(pkg, 'meeting', 'scheduled', `${reasonPrefix}; הפגישה קבועה להיום או לעתיד`);
+  }
+  if (scheduledAt === null) {
+    return resolved(pkg, 'meeting', 'upcoming', `${reasonPrefix}; פגישה טרם נקבעה`);
+  }
+  if (regionConfirmed) {
+    // התווית מעגנת את האזור; המועד אינו תקף → נדרש תיאום מחדש
+    return resolved(pkg, 'meeting', 'upcoming', `${reasonPrefix}; אין מועד פגישה עתידי תקף`);
+  }
+  return unknown('מועד הפגישה חלף ואין תווית Internal Status שמכריעה בין שלב הפגישה לטופס השינויים');
+}
+
 // ===== אזור שלבים 6–8 — אחרי שמור אישרה את התוכנית =====
 function deriveSelectionsRegion(
   d: CustomerJourneyData,
@@ -80,32 +111,43 @@ function deriveSelectionsRegion(
 ): JourneyRuntimeState {
   const hotels = hotelsReservationPhase(d);
   const attrRes = attractionsReservationsPhase(d);
-  const attractionsPaid = isPaid(d.payments.attractions.status);
+  const pay = paymentStagePhase(d);
   const windowOpen = paymentWindowOpen(today, d.trip.startDate);
 
-  // הכול הוזמן — "הכול מוכן לטיול". שני האותות נדרשים במפורש.
-  if (hotels === 'completed' && attrRes === 'completed') {
-    return pkg === 'basic'
-      ? resolved(pkg, 'selections', 'all-ready', 'המלונות הוזמנו והאטרקציות הוזמנו (Completed)')
-      : resolved(pkg, 'attractions-booking', 'all-ready', 'המלונות הוזמנו והאטרקציות הוזמנו (Completed)');
-  }
-
-  // שלב 8 פעיל רק על סמך האות הישיר של עוקב ההזמנות: 'In Progress'.
-  // בכוונה *לא* מספיקים: תשלום האטרקציות בלוח התשלומים (ההנחה הקודמת —
-  // סומנה כטעונת-אימות), 'Paid' בעוקב ההזמנות (מצב מוכר אך ללא מעבר
-  // עסקי מאומת), או 'Yet to start' (הצוות טרם התחיל).
-  if (hotels === 'completed' && attrRes === 'inProgress') {
-    return resolved(pkg, 'attractions-booking', 'working',
-      'המלונות הוזמנו והזמנת האטרקציות בביצוע (In Progress)');
-  }
-
   if (hotels === 'completed') {
-    // הלקוח שילם (בלוח התשלומים) או שהעוקב מסמן Paid — אך ההזמנה טרם
-    // בביצוע: אין שלב מאומת למצב הזה. עצירה בטוחה עד אישור עסקי.
-    if (attractionsPaid || attrRes === 'paid' || attrRes === 'notStarted') {
-      return unknown('האטרקציות שולמו אך ההזמנה טרם בביצוע — המעבר לשלב 8 במצב הזה טרם אומת עסקית');
+    // ההזמנות הושלמו — "הכול מוכן לטיול"
+    if (attrRes === 'completed') {
+      return pkg === 'basic'
+        ? resolved(pkg, 'selections', 'all-ready', 'המלונות הוזמנו והאטרקציות הוזמנו (Completed)')
+        : resolved(pkg, 'attractions-booking', 'all-ready', 'המלונות הוזמנו והאטרקציות הוזמנו (Completed)');
     }
-    // תשלום האטרקציות עדיין פתוח — לפי חלון 90 הימים
+
+    // advance-paid (מקור האמת לתשלום) + מצב עבודת ההזמנות המאומת:
+    //   Yet to start — שולם, ההזמנה בתור הצוות; In Progress — בביצוע.
+    // בשני המקרים הכדור אצל צוות מר יפן → שלב 8.
+    if (paymentStageAdvancePaid(pay) && (attrRes === 'inProgress' || attrRes === 'notStarted')) {
+      return resolved(pkg, 'attractions-booking', 'working',
+        attrRes === 'inProgress'
+          ? 'advance-paid והזמנת האטרקציות בביצוע (In Progress)'
+          : 'advance-paid — ההזמנה בתור הצוות (Yet to start)');
+    }
+    if (paymentStageAdvancePaid(pay)) {
+      return unknown('advance-paid אך מצב עבודת ההזמנות אינו זמין/מוכר — אין שלב מאומת');
+    }
+
+    // advance-sent: Monday עצמו מסמן שבקשת תשלום האטרקציות פעילה —
+    // עדות עסקית ישירה, חזקה מחישוב חלון בפרונט.
+    if (pay === 'advanceSent') {
+      return resolved(pkg, 'selections', 'open', 'advance-sent — תשלום האטרקציות נדרש מהלקוח');
+    }
+
+    // אין מידע תשלום מהעמודה הפנימית — נסיגה לכללים הקודמים:
+    // תשלום לפי לוח התשלומים + חלון 90 הימים. In Progress לבדו *אינו*
+    // מפעיל שלב 8 (נדחה בדגימת פרודקשן — העוקב עלול להיות ישן).
+    if (isPaid(d.payments.attractions.status) || attrRes === 'paid'
+        || attrRes === 'notStarted' || attrRes === 'inProgress') {
+      return unknown('אין payment-stage-internal מוכר, והאותות הישנים אינם מספיקים לקביעת שלב 8');
+    }
     if (windowOpen === true) {
       return resolved(pkg, 'selections', 'open',
         'המלונות הוזמנו; חלון תשלום האטרקציות פתוח והתשלום טרם שולם');
@@ -117,13 +159,11 @@ function deriveSelectionsRegion(
   }
 
   // ===== גבול 6↔7 — תוויות אזור המלונות ב-Internal Status =====
-  // מגיעים לכאן רק כשהמלונות *לא* הוזמנו (checkbox false/null): checkbox
-  // true הוא אות השלמה במורד הזרם וכבר טופל למעלה — תווית ישנה לעולם
-  // אינה מחזירה לקוח שהוזמנו לו מלונות אל שלב 7.
+  // מגיעים לכאן רק כשהמלונות לא הוזמנו (checkbox false/null): checkbox
+  // true הוא אות השלמה במורד הזרם — תווית ישנה לעולם אינה מחזירה לקוח
+  // שהוזמנו לו מלונות אל שלב 7.
   const region = internalStatusPhase(d);
   if (region === 'hotelsReservations') {
-    // אומת בפרודקשן לחבילת Advanced בלבד; לחבילות בלי שלב הזמנת
-    // מלונות התווית אינה ממופה — עצירה בטוחה, לא המצאת שלב.
     return pkg === 'advanced'
       ? resolved(pkg, 'hotels-booking', 'working',
           'Internal Status = Hotels Reservations — הבחירה התקבלה והצוות מזמין')
@@ -133,61 +173,73 @@ function deriveSelectionsRegion(
     return resolved(pkg, 'selections', 'open', 'Internal Status = Hotels catalog — הלקוח בוחר מלונות');
   }
 
-  // הצוות סימן במפורש שהמלונות טרם הוזמנו → הלקוח באזור הבחירות.
+  // הצוות סימן במפורש שהמלונות טרם הוזמנו → הלקוח באזור הבחירות
   if (hotels === 'incomplete') {
     return resolved(pkg, 'selections', 'open', 'הצוות סימן שהמלונות טרם הוזמנו — הבחירות פתוחות');
   }
 
-  // checkbox המלונות לא זמין (null). null ≠ "לא הוזמן" — אבל אם תשלום
-  // האטרקציות פתוח והחלון פתוח, יש ללקוח פעולה מאומתת פתוחה בכל מקרה.
-  if (!attractionsPaid && windowOpen === true) {
+  // checkbox המלונות לא זמין (null ≠ false). אם יש ללקוח פעולה מאומתת
+  // פתוחה — advance-sent, או תשלום פתוח בתוך החלון — הבחירות פתוחות.
+  if (pay === 'advanceSent') {
+    return resolved(pkg, 'selections', 'open', 'advance-sent — תשלום האטרקציות נדרש מהלקוח');
+  }
+  if (!paymentStageAdvancePaid(pay) && pay !== 'unknown'
+      && !isPaid(d.payments.attractions.status) && windowOpen === true) {
     return resolved(pkg, 'selections', 'open',
       'תשלום האטרקציות פתוח בתוך החלון — פעולה מאומתת של הלקוח, גם כשמצב המלונות לא ידוע');
   }
   return unknown('מצב הזמנת המלונות אינו זמין (checkbox חסר) — לא ניתן למקם בין שלבים 6–8');
 }
 
-// ===== שלבים 2–4 — לפני שטופס השינויים נקלט =====
+// ===== שלבים 1–4 — לפני שטופס השינויים נקלט =====
 function deriveEarlyRegion(
   d: CustomerJourneyData,
   today: string,
   pkg: PackageId,
 ): JourneyRuntimeState {
-  const serviceStatus = d.payments.service.status;
-  if (serviceStatus === null) {
-    return unknown('סטטוס תשלום השירות חסר וטופס השינויים טרם נקלט — אין ראיה לעמדה');
+  const pay = paymentStagePhase(d);
+
+  // מקור האמת: payment-stage-internal
+  if (pay === 'serviceSent') {
+    return resolved(pkg, 'service-payment', 'due', 'payment-stage-internal = service-sent — תשלום השירות נדרש');
   }
-  if (!isPaid(serviceStatus)) {
-    // תקדים מאושר (customerActionStatus): תווית שאינה 'Paid' = התשלום פתוח.
-    // ההבחנה 1↔2 (מוכנות התוכנית) חסרת אות — נשארים בשלב התשלום.
-    return resolved(pkg, 'service-payment', 'due', 'תשלום השירות טרם שולם');
+  if (paymentStageServicePaid(pay)) {
+    return deriveMeetingStage(d, today, pkg, 'תשלום השירות הושלם (payment-stage-internal)', false);
+  }
+  if (pay === 'notRequested') {
+    // העמודה ריקה = טרם נשלחה בקשת תשלום. אבל ראיה במורד הזרם גוברת:
+    // לקוח ותיק שלוח התשלומים שלו כבר מסמן Paid אינו מוחזר לשלב 1.
+    if (isPaid(d.payments.service.status)) {
+      return deriveMeetingStage(d, today, pkg, 'תשלום השירות הושלם (לוח התשלומים)', false);
+    }
+    return resolved(pkg, 'plan-building', 'working',
+      'payment-stage-internal ריק — טרם נשלחה בקשת תשלום; התוכנית בהכנה');
   }
 
-  const scheduledAt = d.meeting.scheduledAt;
-  if (scheduledAt === null) {
-    return resolved(pkg, 'meeting', 'upcoming', 'שולם; פגישה טרם נקבעה');
+  // תווית תשלום לא מוכרת → נסיגה למקור הקודם (לוח התשלומים) בלבד
+  const serviceStatus = d.payments.service.status;
+  if (serviceStatus === null) {
+    return unknown('תווית payment-stage-internal לא מוכרת וסטטוס לוח התשלומים חסר — אין ראיה לעמדה');
   }
-  const passed = isoDatePassed(today, scheduledAt);
-  if (passed === false) {
-    return resolved(pkg, 'meeting', 'scheduled', 'שולם; הפגישה קבועה להיום או לעתיד');
+  if (!isPaid(serviceStatus)) {
+    return resolved(pkg, 'service-payment', 'due', 'תשלום השירות טרם שולם (לוח התשלומים)');
   }
-  if (passed === true) {
-    // מעבר 3→4: "הפגישה התקיימה" אינו אות מאומת (מועד שחלף אינו הוכחה),
-    // ואין אות ל"טופס פתוח אך טרם נשלח" — לא ממציאים עמדה.
-    return unknown('מועד הפגישה חלף אך אין אות מאומת בין שלב הפגישה לטופס השינויים (מעבר 3→4 לא נפתר)');
-  }
-  return unknown('מועד הפגישה השמור אינו תאריך תקין');
+  return deriveMeetingStage(d, today, pkg, 'תשלום השירות הושלם (לוח התשלומים)', false);
 }
 
 // ===== הכניסה הראשית =====
-// today: 'YYYY-MM-DD' (הזמן של הקורא — המנוע עצמו אינו קורא שעון).
-// pkg: חבילת הלקוח. אין לה מקור Monday מאומת — עד שיהיה, הקורא מספק
-// אותה (בדמו זה מתג החבילה); ברירת המחדל 'advanced' = המסע המלא.
+// today: 'YYYY-MM-DD' (הזמן של הקורא — המנוע אינו קורא שעון).
+// pkg: דריסה מפורשת של החבילה; בהיעדרה — נגזרת מ-Plan (status8),
+// ואם גם היא לא ידועה — 'advanced' (המסע המלא) כברירת תצוגה.
+// extras: ראיות חיצוניות לאייטם (הגשת משוב) — ראו JourneyRuntimeExtras.
 export function deriveJourneyRuntimeState(
   customer: CustomerJourneyData,
   today: string,
-  pkg: PackageId = 'advanced',
+  pkg?: PackageId,
+  extras?: JourneyRuntimeExtras,
 ): JourneyRuntimeState {
+  const resolvedPkg: PackageId = pkg ?? packageFromPlan(customer) ?? 'advanced';
+
   // 1. מצב סופני — גובר על הכול, כולל משוב. ביטול ≠ השלמת מסע.
   const lifecycle = internalStatusPhase(customer);
   if (lifecycle === 'cancelled') {
@@ -200,42 +252,37 @@ export function deriveJourneyRuntimeState(
 
   // 2. מחזור החיים המאומת של הטיול עצמו
   if (lifecycle === 'abroad') {
-    return resolved(pkg, 'in-japan', 'traveling', 'Internal Status = Abroad — הלקוח בטיול');
+    return resolved(resolvedPkg, 'in-japan', 'traveling', 'Internal Status = Abroad — הלקוח בטיול');
   }
   if (lifecycle === 'archive') {
-    // 'open' בלבד: הוכחת הגשת משוב חיה בלוח ה-Feedbacks (בדיקת EXISTS
-    // בצד השער — שלב עתידי). Archive לבדו לעולם אינו "המשוב נשלח".
-    return resolved(pkg, 'feedback', 'open', 'Internal Status = Archive — הטיול הסתיים, המשוב פתוח');
+    // הגשת משוב מוכחת אך ורק ע"י relation בלוח ה-Feedbacks (extras).
+    // Archive לבדו לעולם אינו "המשוב נשלח"; לא-נבדק/לא-ידוע = פתוח.
+    if (extras?.feedbackSubmitted === true) {
+      return resolved(resolvedPkg, 'feedback', 'submitted',
+        'Internal Status = Archive וקיים אייטם משוב מקושר ללקוח — המשוב הוגש');
+    }
+    return resolved(resolvedPkg, 'feedback', 'open',
+      'Internal Status = Archive — הטיול הסתיים, המשוב פתוח');
   }
-  // lifecycle 'other' (תווית תפעולית קיימת אך לא ממופה, למשל Final QA)
-  // או 'unknown' (חסר) — אינם קובעים עמדה; ממשיכים לראיות טרום-הטיול.
 
   // 3. טרום-הטיול — האות המאוחר המאומת גובר (Plan Approval של מור).
-  // תווית אזור ב-Internal Status שנשארה מאחור אינה מבטלת הגשה/אישור.
+  // תווית אזור שנשארה מאחור אינה מבטלת הגשה/אישור.
   const plan = planChangesPhase(customer);
-  if (plan === 'approved') return deriveSelectionsRegion(customer, today, pkg);
+  if (plan === 'approved') return deriveSelectionsRegion(customer, today, resolvedPkg);
   if (plan === 'inProgress') {
-    return resolved(pkg, 'changes-processing', 'working',
+    return resolved(resolvedPkg, 'changes-processing', 'working',
       'Plan Approval = Changes form submitted — הצוות מטמיע את השינויים');
   }
 
   // 3א. גבול שלב 3↔4 — תוויות האזור המאומתות ב-Internal Status.
   // מועד פגישה שחלף לבדו לעולם אינו מפיק שלב 4; רק התווית קובעת.
   if (lifecycle === 'changesWindowOpen') {
-    return resolved(pkg, 'changes-form', 'open',
-      'Internal Status = Changes window open — חלון טופס השינויים פתוח');
+    return resolved(resolvedPkg, 'changes-form', 'open',
+      'Internal Status = Changes window open — הפגישה מאחור וחלון טופס השינויים פתוח');
   }
   if (lifecycle === 'waitingForMeeting') {
-    const scheduledAt = customer.meeting.scheduledAt;
-    if (scheduledAt !== null && isoDatePassed(today, scheduledAt) === false) {
-      return resolved(pkg, 'meeting', 'scheduled',
-        'Internal Status = Waiting for meeting; פגישה קבועה להיום או לעתיד');
-    }
-    // אין מועד עתידי תקף (חסר / חלף / שבור) — לפי התווית עדיין באזור
-    // הפגישה, כלומר נדרש תיאום: תת-המצב הקיים 'upcoming'.
-    return resolved(pkg, 'meeting', 'upcoming',
-      'Internal Status = Waiting for meeting; אין מועד פגישה עתידי תקף');
+    return deriveMeetingStage(customer, today, resolvedPkg, 'Internal Status = Waiting for meeting', true);
   }
 
-  return deriveEarlyRegion(customer, today, pkg);
+  return deriveEarlyRegion(customer, today, resolvedPkg);
 }

@@ -31,6 +31,8 @@ console.log('trip.startDate     :', d.trip.startDate ?? '—');
 console.log('trip.endDate       :', d.trip.endDate ?? '—');
 console.log('trip.createdAt     :', d.trip.createdAt ?? '—');
 console.log('ops.internalStatus :', d.operations.internalStatus ?? '—');
+console.log('ops.plan           :', d.operations.plan ?? '—');
+console.log('ops.paymentStage   :', d.operations.paymentStageInternal ?? '—');
 console.log('ops.hotelsBooked   :', d.operations.hotelsBooked === null ? '— לא ידוע' : d.operations.hotelsBooked);
 console.log('ops.attractionsRes :', d.operations.attractionsReservationsStatus ?? '—');
 console.log('meeting.scheduledAt:', d.meeting.scheduledAt ?? '—');

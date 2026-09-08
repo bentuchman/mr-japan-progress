@@ -18,6 +18,8 @@ const clientColumns = [
   { id: CLIENTS_COLUMNS.internalStatus, type: 'status', text: 'Abroad', value: '{"index":5}' },
   { id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: 'v', value: '{"checked":true}' },
   { id: CLIENTS_COLUMNS.attractionsReservations, type: 'status', text: 'In Progress', value: '{"index":1}' },
+  { id: CLIENTS_COLUMNS.plan, type: 'status', text: 'Advanced', value: '{"index":2}' },
+  { id: CLIENTS_COLUMNS.paymentStageInternal, type: 'status', text: 'service-paid', value: '{"index":4}' },
   { id: CLIENTS_COLUMNS.createdAt, type: 'date', text: '2099-01-02', value: '{"date":"2099-01-02"}' },
   { id: CLIENTS_COLUMNS.zoomMeetingId, type: 'text', text: 'FAKE-ZOOM-1', value: '"FAKE-ZOOM-1"' },
   { id: CLIENTS_COLUMNS.zoomMeetingDateTime, type: 'date', text: '', value: '{"date":"2099-02-03","time":"19:00:00"}' },
@@ -84,6 +86,8 @@ configureMondayGateway({ endpoint: 'https://gateway.invalid/webhook' });
   assert.equal(d.operations.internalStatus, 'Abroad');                    // תווית מדויקת, בלי פרשנות
   assert.equal(d.operations.hotelsBooked, true);                          // מה-value המובנה, לא מהטקסט
   assert.equal(d.operations.attractionsReservationsStatus, 'In Progress');
+  assert.equal(d.operations.plan, 'Advanced');                            // Plan (status8) — תווית מדויקת
+  assert.equal(d.operations.paymentStageInternal, 'service-paid');        // payment-stage-internal
   assert.equal(d.meeting.scheduledAt, '2099-02-03T19:00:00');
   assert.equal(d.meeting.meetingUrl, 'https://example.invalid/meet');     // value.url, לא טקסט התצוגה
   assert.equal(d.meeting.rescheduleUrl, null);                            // display_value ריק → null

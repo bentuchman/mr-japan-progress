@@ -17,7 +17,7 @@ function customer(overrides = {}) {
     meeting: { zoomMeetingId: null, scheduledAt: null, meetingUrl: null, rescheduleUrl: null, rescheduleUrlMaster: null },
     forms: { hotelSelectionUrl: null, planChangesUrl: null, feedbackUrl: null },
     planApprovalStatus: null,
-    operations: { internalStatus: null, hotelsBooked: null, attractionsReservationsStatus: null },
+    operations: { internalStatus: null, hotelsBooked: null, attractionsReservationsStatus: null, plan: null, paymentStageInternal: null },
     payments: { service: { status: null, paymentUrl: null, paidAt: null, receiptUrl: null },
                 attractions: { status: null, paymentUrl: null, paidAt: null, receiptUrl: null } },
   };
@@ -74,31 +74,42 @@ const expectUnknown = (state, label) =>
   // Archive בלי כתובת משוב — עדיין open (זמינות ה-CTA היא עניין של שכבת הפעולה)
   expectStage(derive(customer({ operations: { internalStatus: 'Archive' } })), 'feedback', 'open', 'Archive ללא URL');
   // תווית תפעולית לא ממופה אינה קובעת עמדה — ממשיכים לסולם טרום-הטיול
-  const other = derive(customer({ operations: { internalStatus: 'Final QA' }, payments: { service: { status: 'Pending' } } }));
+  const other = derive(customer({ operations: { internalStatus: 'Final QA', paymentStageInternal: 'service-sent' } }));
   expectStage(other, 'service-payment', 'due', 'Final QA נופל לטרום-טיול');
   console.log('runtime: Abroad/Archive/other ✓');
 }
 
-// ===== 3. שלבים 2–4 =====
+// ===== 3. שלבים 1–4 — payment-stage-internal כמקור האמת =====
 {
-  // אין שום ראיה → unknown, לא ניחוש
-  expectUnknown(derive(customer()), 'ללא ראיות');
-  // תשלום שירות פתוח (תווית שאינה Paid)
-  expectStage(derive(customer({ payments: { service: { status: 'Pending' } } })), 'service-payment', 'due', 'לא שולם');
-  // שולם; אין פגישה → טרם נקבעה
-  expectStage(derive(customer({ payments: { service: { status: 'Paid' } } })), 'meeting', 'upcoming', 'שולם בלי פגישה');
-  // שולם; פגישה עתידית / היום → נקבעה
-  expectStage(derive(customer({ payments: { service: { status: 'Paid' } }, meeting: { scheduledAt: '2099-06-10T19:00:00' } })),
+  const withPay = (paymentStageInternal, extra = {}) =>
+    customer({ operations: { paymentStageInternal }, ...extra });
+  // עמודה ריקה = טרם נשלחה בקשת תשלום → התוכנית בהכנה (שלב 1, אומת)
+  expectStage(derive(customer()), 'plan-building', 'working', 'ללא בקשת תשלום → שלב 1');
+  // CASE A: service-sent → תשלום השירות נדרש
+  expectStage(derive(withPay('service-sent')), 'service-payment', 'due', 'CASE A: service-sent');
+  // CASE B: service-paid → שלב 2 הושלם, ממשיכים לפגישה
+  expectStage(derive(withPay('service-paid')), 'meeting', 'upcoming', 'CASE B: service-paid');
+  // שלב מאוחר מוכיח את המוקדמים: advance-sent פירושו שהשירות שולם
+  expectStage(derive(customer({ operations: { paymentStageInternal: 'advance-sent' }, planApprovalStatus: null })),
+    'meeting', 'upcoming', 'advance-sent מוכיח תשלום שירות');
+  // עמודה ריקה אך לוח התשלומים מוכיח Paid (לקוח ותיק) → לא חוזרים לשלב 1
+  expectStage(derive(customer({ payments: { service: { status: 'Paid' } } })), 'meeting', 'upcoming', 'נסיגת עבר: Paid');
+  // תווית תשלום לא מוכרת → נסיגה ללוח התשלומים בלבד
+  expectStage(derive(withPay('weird-label', { payments: { service: { status: 'Pending' } } })),
+    'service-payment', 'due', 'תווית לא מוכרת + Pending');
+  expectUnknown(derive(withPay('weird-label')), 'תווית לא מוכרת בלי מקור עבר');
+  // פגישה עתידית / היום → נקבעה
+  expectStage(derive(withPay('service-paid', { meeting: { scheduledAt: '2099-06-10T19:00:00' } })),
     'meeting', 'scheduled', 'פגישה עתידית');
-  expectStage(derive(customer({ payments: { service: { status: 'Paid' } }, meeting: { scheduledAt: TODAY } })),
+  expectStage(derive(withPay('service-paid', { meeting: { scheduledAt: TODAY } })),
     'meeting', 'scheduled', 'פגישה היום');
-  // מועד הפגישה חלף וטופס השינויים טרם נקלט → מעבר 3→4 לא נפתר → unknown
-  expectUnknown(derive(customer({ payments: { service: { status: 'Paid' } }, meeting: { scheduledAt: '2099-05-01T19:00:00' } })),
+  // מועד הפגישה חלף בלי תווית אזור → מעבר 3↔4 לא מוכרע → unknown
+  expectUnknown(derive(withPay('service-paid', { meeting: { scheduledAt: '2099-05-01T19:00:00' } })),
     'פגישה שחלפה');
   // מועד פגישה שבור → unknown
-  expectUnknown(derive(customer({ payments: { service: { status: 'Paid' } }, meeting: { scheduledAt: 'מחר בערב' } })),
+  expectUnknown(derive(withPay('service-paid', { meeting: { scheduledAt: 'מחר בערב' } })),
     'מועד שבור');
-  console.log('runtime: שלבים 2–4 ✓');
+  console.log('runtime: שלבים 1–4 (payment-stage-internal) ✓');
 }
 
 // ===== 3ב. גבול שלב 3↔4 — תוויות האזור המאומתות ב-Internal Status =====
@@ -130,16 +141,22 @@ const expectUnknown = (state, label) =>
   // 'Sent for review' אינו מפורש — לא שלב 5 ולא קידום אחר
   const sent = derive(customer({ operations: { internalStatus: 'Changes window open' }, planApprovalStatus: 'Sent for review' }));
   expectStage(sent, 'changes-form', 'open', 'Sent for review אינו שלב 5');
-  expectUnknown(derive(customer({ planApprovalStatus: 'Sent for review' })), 'Sent for review לבדו');
+  // לבדו (בלי שום אות אחר): נופל לסולם המוקדם — לא changes-processing
+  const sentAlone = derive(customer({ planApprovalStatus: 'Sent for review' }));
+  assert.ok(!(sentAlone.kind === 'resolved' && sentAlone.currentStageId === 'changes-processing'),
+    'Sent for review לבדו אינו שלב 5');
   console.log('runtime: גבול 3↔4 לפי Internal Status ✓');
 }
 
 // ===== 4. שלב 5 — Plan Approval של מור =====
 {
   expectStage(derive(customer({ planApprovalStatus: 'Changes form submitted' })), 'changes-processing', 'working', 'שלב 5');
-  // תווית Plan Approval לא מוכרת → אינה מקדמת; נופל לשלבים 2–4
-  expectStage(derive(customer({ planApprovalStatus: 'Working on it', payments: { service: { status: 'Pending' } } })),
+  // תווית Plan Approval לא מוכרת → אינה מקדמת; נופל לשלבים 1–4
+  expectStage(derive(customer({ planApprovalStatus: 'Working on it', operations: { paymentStageInternal: 'service-sent' } })),
     'service-payment', 'due', 'plan לא מוכר');
+  // CASE 'Sent for review' — אינו מפורש: אינו שלב 5 ואינו מקדם
+  expectStage(derive(customer({ planApprovalStatus: 'Sent for review', operations: { paymentStageInternal: 'service-sent' } })),
+    'service-payment', 'due', 'Sent for review אינו מקדם');
   console.log('runtime: שלב 5 ✓');
 }
 
@@ -154,27 +171,47 @@ const expectUnknown = (state, label) =>
   expectStage(derive(approved({ operations: { hotelsBooked: true, attractionsReservationsStatus: 'Completed' } }), 'basic'),
     'selections', 'all-ready', 'all-ready בסיסי');
 
-  // שלב 8 פעיל רק על האות הישיר: הזמנת האטרקציות In Progress
+  // ===== שלב 8 — advance-paid (מקור האמת) + מצב עבודת ההזמנות =====
+  // CASE H: advance-paid + Yet to start → שולם, ההזמנה בתור הצוות → שלב 8
   expectStage(derive(approved({
-    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
-  })), 'attractions-booking', 'working', 'In Progress → בביצוע');
-  // חבילת בסיס: אין שלב attractions-booking → unknown מפורש, לא המצאה
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'Yet to start', paymentStageInternal: 'advance-paid' },
+  })), 'attractions-booking', 'working', 'CASE H: advance-paid + Yet to start');
+  // CASE I: advance-paid + In Progress → הצוות עובד על ההזמנות
+  expectStage(derive(approved({
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress', paymentStageInternal: 'advance-paid' },
+  })), 'attractions-booking', 'working', 'CASE I: advance-paid + In Progress');
+  // CASE J: advance-paid + Completed (+ מלונות) → הכול מוכן
+  expectStage(derive(approved({
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'Completed', paymentStageInternal: 'advance-paid' },
+  })), 'attractions-booking', 'all-ready', 'CASE J: advance-paid + Completed');
+  // advance-sent → תשלום האטרקציות נדרש מהלקוח (עדות ישירה, בלי חישוב חלון)
+  expectStage(derive(approved({
+    operations: { hotelsBooked: true, paymentStageInternal: 'advance-sent' },
+  })), 'selections', 'open', 'advance-sent → תשלום נדרש');
+  // In Progress *לבדו* (בלי advance-paid) נדחה בפרודקשן כאות הפעלה → עצירה בטוחה
   expectUnknown(derive(approved({
     operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
+  })), 'In Progress לבדו → לא working');
+  // חבילת בסיס: אין שלב attractions-booking → unknown מפורש, לא המצאה
+  expectUnknown(derive(approved({
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress', paymentStageInternal: 'advance-paid' },
   }), 'basic'), 'basic ללא שלב הזמנת אטרקציות');
 
-  // תשלום בלוח התשלומים לבדו *אינו* מקדם לשלב 8 — ההנחה הקודמת בוטלה,
-  // המעבר טעון אימות עסקי → עצירה בטוחה
+  // מקורות עבר בלבד (לוח התשלומים) אינם מקדמים לשלב 8 — עצירה בטוחה
   for (const attrRes of ['Yet to start', null]) {
     expectUnknown(derive(approved({
       operations: { hotelsBooked: true, attractionsReservationsStatus: attrRes },
       payments: { attractions: { status: 'Paid' } },
-    })), `שולם + ${attrRes} → לא working`);
+    })), `Paid ישן + ${attrRes} → לא working`);
   }
-  // גם התווית החדשה 'Paid' בעוקב ההזמנות לבדה אינה מעבר מאומת לשלב 8
+  // 'Paid' בעוקב ההזמנות אינו אמת-תשלום ואינו מעבר לשלב 8
   expectUnknown(derive(approved({
     operations: { hotelsBooked: true, attractionsReservationsStatus: 'Paid' },
   })), 'Attractions Reservations = Paid → לא working');
+  // advance-paid אך עוקב ההזמנות ריק/לא מוכר → אין שלב מאומת
+  expectUnknown(derive(approved({
+    operations: { hotelsBooked: true, paymentStageInternal: 'advance-paid' },
+  })), 'advance-paid בלי מצב הזמנות');
 
   // מלונות הוזמנו, תשלום אטרקציות פתוח — לפי חלון 90 הימים
   const openWin = { trip: { startDate: '2099-08-15' } };   // 75 ימים → פתוח
@@ -212,7 +249,7 @@ const expectUnknown = (state, label) =>
   }
   // checkbox true לבדו אינו מפעיל שלב 7 — הוא אות השלמה במורד הזרם
   expectStage(derive(approved({
-    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress', paymentStageInternal: 'advance-paid' },
   })), 'attractions-booking', 'working', 'הוזמן → שלב 8, לא שלב 7');
   // תווית Hotels Reservations ישנה אינה מושכת אחורה לקוח שהתקדם:
   // המלונות כבר הוזמנו → האות במורד הזרם גובר
@@ -220,13 +257,106 @@ const expectUnknown = (state, label) =>
     operations: { internalStatus: 'Hotels Reservations', hotelsBooked: true, attractionsReservationsStatus: 'Completed' },
   })), 'attractions-booking', 'all-ready', 'תווית ישנה מול all-ready');
   expectStage(derive(approved({
-    operations: { internalStatus: 'Hotels Reservations', hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
+    operations: { internalStatus: 'Hotels Reservations', hotelsBooked: true, attractionsReservationsStatus: 'In Progress', paymentStageInternal: 'advance-paid' },
   })), 'attractions-booking', 'working', 'תווית ישנה מול שלב 8 פעיל');
   // המיפוי חי רק תחת Approved: בלי אישור מור התווית אינה מקדמת לשלב 7
   const noApproval = derive(customer({ operations: { internalStatus: 'Hotels Reservations' } }));
   assert.ok(!(noApproval.kind === 'resolved' && noApproval.currentStageId === 'hotels-booking'),
     'Hotels Reservations בלי Approved אינו שלב 7');
   console.log('runtime: אזור 6–8 + גבול 6↔7 ✓');
+}
+
+// ===== 5ב. חבילה מ-Plan (status8) — CASE G =====
+{
+  const { packageFromPlan } = await import('../src/customerActions.ts');
+  assert.equal(packageFromPlan(customer({ operations: { plan: 'Advanced' } })), 'advanced');
+  assert.equal(packageFromPlan(customer({ operations: { plan: 'Standard' } })), 'standard');
+  assert.equal(packageFromPlan(customer({ operations: { plan: 'Basic' } })), 'basic');
+  assert.equal(packageFromPlan(customer({ operations: { plan: 'סטנדרטי' } })), null);   // לא ממופה עד הכרעה
+  assert.equal(packageFromPlan(customer({ operations: { plan: 'advanced' } })), null);  // רישיות ≠ תווית
+  assert.equal(packageFromPlan(customer()), null);
+  // המנוע גוזר את החבילה מ-Plan כשלא סופקה דריסה:
+  // לקוח Basic שהכול הוזמן לו → all-ready של מסלול הבסיס, בלי pkg מפורש
+  const basicReady = deriveJourneyRuntimeState(customer({
+    operations: { plan: 'Basic', hotelsBooked: true, attractionsReservationsStatus: 'Completed' },
+    planApprovalStatus: 'Approved',
+  }), TODAY);
+  assert.equal(basicReady.kind, 'resolved');
+  assert.equal(basicReady.currentStageId, 'selections');
+  assert.equal(basicReady.currentSubstateId, 'all-ready');
+  // CASE G: Plan = Advanced → מסע מלא (שלב 7 קיים)
+  const advRes = deriveJourneyRuntimeState(customer({
+    operations: { plan: 'Advanced', internalStatus: 'Hotels Reservations', hotelsBooked: false },
+    planApprovalStatus: 'Approved',
+  }), TODAY);
+  assert.equal(advRes.kind, 'resolved');
+  assert.equal(advRes.currentStageId, 'hotels-booking');
+  console.log('runtime: חבילה מ-Plan ✓');
+}
+
+// ===== 5ג. משוב — הוכחת הגשה דרך ה-relation בלוח ה-Feedbacks =====
+{
+  const { feedbackLinkedToClient, FEEDBACKS_COLUMNS } = await import('../src/monday/customerJourneyData.ts');
+  const rel = (ids) => ({ column_values: [{ id: FEEDBACKS_COLUMNS.clientsRelation, value: null, linked_item_ids: ids }] });
+  const relClassic = (ids) => ({ column_values: [{ id: FEEDBACKS_COLUMNS.clientsRelation,
+    value: JSON.stringify({ linkedPulseIds: ids.map((x) => ({ linkedPulseId: Number(x) })) }) }] });
+  // CASE K: אייטם משוב מקושר ללקוח → הוגש (בשני ייצוגי ה-relation)
+  assert.equal(feedbackLinkedToClient([rel(['555000111'])], '555000111'), true);
+  assert.equal(feedbackLinkedToClient([relClassic(['555000111'])], '555000111'), true);
+  // CASE L: אין קישור תואם → לא הוגש; אייטם בלי relation לעולם אינו תואם
+  assert.equal(feedbackLinkedToClient([rel(['999888777'])], '555000111'), false);
+  assert.equal(feedbackLinkedToClient([{ column_values: [] }, {}], '555000111'), false);
+  assert.equal(feedbackLinkedToClient([], '555000111'), false);
+
+  // במנוע: Archive + הוכחת הגשה → submitted; בלי הוכחה → open
+  const arch = customer({ operations: { internalStatus: 'Archive' } });
+  expectStage(deriveJourneyRuntimeState(arch, TODAY, 'advanced', { feedbackSubmitted: true }),
+    'feedback', 'submitted', 'CASE K: הגשה מוכחת');
+  expectStage(deriveJourneyRuntimeState(arch, TODAY, 'advanced', { feedbackSubmitted: false }),
+    'feedback', 'open', 'CASE L: אין הגשה');
+  expectStage(deriveJourneyRuntimeState(arch, TODAY, 'advanced', { feedbackSubmitted: null }),
+    'feedback', 'open', 'הגשה לא ידועה → פתוח');
+  expectStage(deriveJourneyRuntimeState(arch, TODAY, 'advanced'), 'feedback', 'open', 'לא נבדק → פתוח');
+  // הוכחת הגשה לעולם אינה עוקפת ביטול
+  assert.equal(deriveJourneyRuntimeState(customer({ operations: { internalStatus: 'Cancelled' } }),
+    TODAY, 'advanced', { feedbackSubmitted: true }).kind, 'terminal');
+  console.log('runtime: משוב לפי relation ✓');
+}
+
+// ===== 5ד. פרשן payment-stage-internal + סטטוס פעולות =====
+{
+  const { paymentStagePhase, paymentStageServicePaid, paymentStageAdvancePaid, customerActionStatus } =
+    await import('../src/customerActions.ts');
+  const withPay = (v) => customer({ operations: { paymentStageInternal: v } });
+  assert.equal(paymentStagePhase(withPay(null)), 'notRequested');
+  assert.equal(paymentStagePhase(withPay('service-sent')), 'serviceSent');
+  assert.equal(paymentStagePhase(withPay('service-paid')), 'servicePaid');
+  assert.equal(paymentStagePhase(withPay('advance-sent')), 'advanceSent');
+  assert.equal(paymentStagePhase(withPay('advance-paid')), 'advancePaid');
+  assert.equal(paymentStagePhase(withPay('consolidation-sent')), 'consolidationSent');
+  assert.equal(paymentStagePhase(withPay('consolidation-done')), 'consolidationDone');
+  assert.equal(paymentStagePhase(withPay('Service-Sent')), 'unknown');   // רישיות ≠ תווית
+  assert.equal(paymentStagePhase(withPay('debt')), 'unknown');
+  assert.equal(paymentStageServicePaid('serviceSent'), false);
+  assert.equal(paymentStageServicePaid('advanceSent'), true);            // שלב מאוחר מוכיח מוקדם
+  assert.equal(paymentStageAdvancePaid('advanceSent'), false);
+  assert.equal(paymentStageAdvancePaid('consolidationDone'), true);
+  // סטטוס פעולות: A/B/H דרך מקור האמת; נסיגה ללוח התשלומים רק בתווית לא מוכרת
+  assert.equal(customerActionStatus('servicePayment', withPay('service-sent')), 'pending');
+  assert.equal(customerActionStatus('servicePayment', withPay('service-paid')), 'completed');
+  assert.equal(customerActionStatus('attractionsPayment', withPay('advance-sent')), 'pending');
+  assert.equal(customerActionStatus('attractionsPayment', withPay('advance-paid')), 'completed');
+  // מקור האמת גובר על לוח התשלומים כשהוא מוכר
+  assert.equal(customerActionStatus('attractionsPayment', customer({
+    operations: { paymentStageInternal: 'advance-sent' },
+    payments: { attractions: { status: 'Paid' } },
+  })), 'pending');
+  // תווית לא מוכרת → נסיגה ללוח התשלומים
+  assert.equal(customerActionStatus('servicePayment', customer({
+    operations: { paymentStageInternal: 'debt' },
+    payments: { service: { status: 'Paid' } },
+  })), 'completed');
+  console.log('paymentStagePhase + customerActionStatus ✓');
 }
 
 // ===== 6. דטרמיניזם + תקפות כל תוצאה מול journeyConfig =====
@@ -236,13 +366,14 @@ const expectUnknown = (state, label) =>
     for (const plan of [null, 'Changes form submitted', 'Approved', 'Sent for review'])
       for (const hotels of [null, true, false])
         for (const service of [null, 'Paid', 'Pending'])
-          for (const startDate of [null, '2099-06-20', '2099-12-01'])
-            cases.push(customer({
-              planApprovalStatus: plan,
-              operations: { internalStatus, hotelsBooked: hotels },
-              payments: { service: { status: service } },
-              trip: { startDate },
-            }));
+          for (const payStage of [null, 'service-sent', 'advance-paid'])
+            for (const startDate of [null, '2099-06-20'])
+              cases.push(customer({
+                planApprovalStatus: plan,
+                operations: { internalStatus, hotelsBooked: hotels, paymentStageInternal: payStage },
+                payments: { service: { status: service } },
+                trip: { startDate },
+              }));
   for (const pkg of ['basic', 'standard', 'advanced']) {
     for (const c of cases) {
       const a = derive(c, pkg);

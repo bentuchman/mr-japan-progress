@@ -12,7 +12,7 @@
 // ============================================================
 
 import type { CustomerJourneyData } from './monday/customerJourneyData.ts';
-import type { ActionStatus } from './journeyConfig';
+import type { ActionStatus, PackageId } from './journeyConfig';
 
 export type CustomerActionKey =
   | 'servicePayment'
@@ -178,6 +178,57 @@ export function attractionsReservationsPhase(
   return 'other';
 }
 
+// ===== payment-stage-internal — מקור האמת לתשלומים (color_mm145w28) =====
+// רצף מאומת: (ריק) → service-sent → service-paid → advance-sent →
+// advance-paid → consolidation-sent → consolidation-done.
+// עמודה ריקה אומתה כמצב עסקי: הלקוח טרם הגיע לבקשת תשלום פעילה.
+// תווית לא מוכרת → 'unknown' — ואז נסוגים למקור הקודם (לוח התשלומים),
+// לא ממציאים. תשלום לעולם אינו נגזר מעמודות טריגר של אוטומציה.
+export type PaymentStagePhase =
+  | 'notRequested'
+  | 'serviceSent'
+  | 'servicePaid'
+  | 'advanceSent'
+  | 'advancePaid'
+  | 'consolidationSent'
+  | 'consolidationDone'
+  | 'unknown';
+
+const PAYMENT_STAGE_LABELS: Record<string, PaymentStagePhase> = {
+  'service-sent': 'serviceSent',
+  'service-paid': 'servicePaid',
+  'advance-sent': 'advanceSent',
+  'advance-paid': 'advancePaid',
+  'consolidation-sent': 'consolidationSent',
+  'consolidation-done': 'consolidationDone',
+};
+
+export function paymentStagePhase(d: CustomerJourneyData | null): PaymentStagePhase {
+  const label = d?.operations?.paymentStageInternal?.trim() ?? null;
+  if (label === null || label === '') return 'notRequested';
+  return PAYMENT_STAGE_LABELS[label] ?? 'unknown';
+}
+
+// הרצף מסודר: שלב מאוחר מוכיח את המוקדמים ממנו
+const SERVICE_PAID_STAGES: ReadonlySet<PaymentStagePhase> =
+  new Set(['servicePaid', 'advanceSent', 'advancePaid', 'consolidationSent', 'consolidationDone']);
+const ADVANCE_PAID_STAGES: ReadonlySet<PaymentStagePhase> =
+  new Set(['advancePaid', 'consolidationSent', 'consolidationDone']);
+
+export const paymentStageServicePaid = (p: PaymentStagePhase): boolean => SERVICE_PAID_STAGES.has(p);
+export const paymentStageAdvancePaid = (p: PaymentStagePhase): boolean => ADVANCE_PAID_STAGES.has(p);
+
+// ===== Plan (status8) — מקור החבילה. בדיוק שלוש תוויות ממופות =====
+// (לא status1 — הוא Type של הלקוח.) 'סטנדרטי' וכל תווית אחרת → null:
+// חבילה לא ידועה אינה מנחשת מסע.
+export function packageFromPlan(d: CustomerJourneyData | null): PackageId | null {
+  const label = d?.operations?.plan?.trim() ?? null;
+  if (label === 'Basic') return 'basic';
+  if (label === 'Standard') return 'standard';
+  if (label === 'Advanced') return 'advanced';
+  return null;
+}
+
 // ===== חלון תשלום האטרקציות — חוק 90 הימים =====
 // פתוח כשנותרו 90 ימים או פחות עד תחילת הטיול (כולל טיול שכבר התחיל —
 // עמדת המסע עצמה אינה נקבעת כאן). 91+ ימים → סגור. תאריך חסר/שבור →
@@ -236,8 +287,17 @@ export function customerActionStatus(
   d: CustomerJourneyData | null,
 ): ActionStatus | null {
   if (!d || !key) return null;
-  if (key === 'servicePayment') return isPaid(d.payments.service.status) ? 'completed' : 'pending';
-  if (key === 'attractionsPayment') return isPaid(d.payments.attractions.status) ? 'completed' : 'pending';
+  // מקור האמת: payment-stage-internal. תווית לא מוכרת בלבד נסוגה למקור
+  // הקודם (תווית 'Paid' בלוח התשלומים) — בלי לנחש.
+  const stage = paymentStagePhase(d);
+  if (key === 'servicePayment') {
+    if (stage !== 'unknown') return paymentStageServicePaid(stage) ? 'completed' : 'pending';
+    return isPaid(d.payments.service.status) ? 'completed' : 'pending';
+  }
+  if (key === 'attractionsPayment') {
+    if (stage !== 'unknown') return paymentStageAdvancePaid(stage) ? 'completed' : 'pending';
+    return isPaid(d.payments.attractions.status) ? 'completed' : 'pending';
+  }
   return null;
 }
 

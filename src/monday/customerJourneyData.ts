@@ -25,7 +25,9 @@ export const CLIENTS_COLUMNS = {
   createdAt: 'date38__1',                  // date
   internalStatus: 'dup__of_internal_status__1',  // status — מצב תפעולי (Abroad/Archive/…)
   hotelsBooked: 'dup__of_skeleton__1',     // checkbox — הצוות סימן שהמלונות הוזמנו
-  attractionsReservations: 'status__1',    // status — Attractions Reservations
+  attractionsReservations: 'status__1',    // status — Attractions Reservations (מצב עבודת ההזמנות, *לא* תשלום)
+  plan: 'status8',                         // status — Plan: Basic/Standard/Advanced (מקור החבילה; לא status1)
+  paymentStageInternal: 'color_mm145w28',  // status — payment-stage-internal: מקור האמת לתשלומים
   zoomMeetingId: 'text2__1',               // text
   zoomMeetingDateTime: 'date_mkkb5x8a',    // date
   meetingLink: 'link_mkkc5hf3',            // link
@@ -73,6 +75,8 @@ export interface CustomerJourneyData {
     internalStatus: string | null;               // Internal Status — התווית המדויקת
     hotelsBooked: boolean | null;                // checkbox: true/false מפורשים, null = לא ידוע
     attractionsReservationsStatus: string | null; // Attractions Reservations — התווית המדויקת
+    plan: string | null;                         // Plan (status8) — Basic/Standard/Advanced
+    paymentStageInternal: string | null;         // payment-stage-internal — מקור האמת לתשלומים
   };
   meeting: {
     zoomMeetingId: string | null;
@@ -216,6 +220,75 @@ query ($itemId: [ID!], $columnIds: [String!]) {
 const emptyPayment = (): PaymentInfo =>
   ({ status: null, paymentUrl: null, paidAt: null, receiptUrl: null });
 
+// ===== לוח המשובים — הוכחת הגשת משוב =====
+// משוב "הוגש" ⇔ קיים אייטם בלוח Feedbacks שה-relation שלו מצביע על
+// אייטם הלקוח (linkedPulseId). לא לפי שם, לא לפי מחרוזות, ולא לפי
+// Archive. נשלפת אך ורק עמודת ה-relation (מזהים אטומים) — לא שמות ולא
+// תוכן משוב. כישלון/חריגה → null: "לא ידוע" לעולם אינו "הוגש".
+export const FEEDBACKS_BOARD_ID = '9107032141';
+export const FEEDBACKS_COLUMNS = {
+  clientsRelation: 'board_relation_mkqs44fs',   // Clients 😀 — board_relation
+} as const;
+
+export const FEEDBACKS_PAGE_QUERY = `
+query ($boardId: [ID!], $columnIds: [String!], $cursor: String) {
+  boards (ids: $boardId) {
+    items_page (limit: 100, cursor: $cursor) {
+      cursor
+      items {
+        id
+        column_values (ids: $columnIds) {
+          id
+          value
+          ... on BoardRelationValue { linked_item_ids }
+        }
+      }
+    }
+  }
+}`;
+
+interface FeedbackItemsPage {
+  cursor: string | null;
+  items: Array<{ id: string; column_values: RawColumnValue[] }>;
+}
+
+interface FeedbackPageData {
+  boards: Array<{ items_page: FeedbackItemsPage | null }> | null;
+}
+
+// טהור ובדיק: האם אחד מאייטמי המשוב מקושר ללקוח הזה. אייטם בלי relation
+// לעולם אינו תואם אף לקוח (מסונן מעצם בדיקת החברות).
+export function feedbackLinkedToClient(
+  items: Array<{ column_values?: RawColumnValue[] }>,
+  clientMondayItemId: string,
+): boolean {
+  return items.some((item) =>
+    linkedItemIds(item.column_values?.find((cv) => cv.id === FEEDBACKS_COLUMNS.clientsRelation))
+      .includes(String(clientMondayItemId)),
+  );
+}
+
+const MAX_FEEDBACK_PAGES = 30;   // תקרת בטיחות — מעבר לה: "לא ידוע", לא ניחוש
+
+export async function getFeedbackSubmitted(
+  clientMondayItemId: string,
+): Promise<boolean | null> {
+  let cursor: string | null = null;
+  for (let page = 0; page < MAX_FEEDBACK_PAGES; page++) {
+    const res: MondayResult<FeedbackPageData> = await mondayQuery<FeedbackPageData>(
+      FEEDBACKS_PAGE_QUERY,
+      { boardId: [FEEDBACKS_BOARD_ID], columnIds: [FEEDBACKS_COLUMNS.clientsRelation], cursor },
+    );
+    if (!res.ok) return null;
+    const pageData: FeedbackItemsPage | null | undefined = res.data.boards?.[0]?.items_page;
+    if (!pageData) return null;
+    if (feedbackLinkedToClient(pageData.items ?? [], clientMondayItemId)) return true;
+    cursor = pageData.cursor;
+    if (cursor === null) return false;   // כל הלוח נסרק — אין קישור
+  }
+  return null;   // הלוח גדול מהתקרה — לא ידוע, לא "לא הוגש"
+}
+
 // ===== הכניסה הראשית: לקוח אחד, לפי מזהה — לעולם לא לפי שם =====
 export async function getCustomerJourneyData(
   clientMondayItemId: string,
@@ -260,6 +333,8 @@ export async function getCustomerJourneyData(
         internalStatus: statusLabel(c.get(CLIENTS_COLUMNS.internalStatus)),
         hotelsBooked: checkboxValue(c.get(CLIENTS_COLUMNS.hotelsBooked)),
         attractionsReservationsStatus: statusLabel(c.get(CLIENTS_COLUMNS.attractionsReservations)),
+        plan: statusLabel(c.get(CLIENTS_COLUMNS.plan)),
+        paymentStageInternal: statusLabel(c.get(CLIENTS_COLUMNS.paymentStageInternal)),
       },
       meeting: {
         zoomMeetingId: textValue(c.get(CLIENTS_COLUMNS.zoomMeetingId)),
