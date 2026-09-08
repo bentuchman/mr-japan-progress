@@ -144,14 +144,23 @@ console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
     payments: { service: { status: 'Paid', paymentUrl: null, paidAt: null, receiptUrl: null },
                 attractions: { status: 'pending-something', paymentUrl: null, paidAt: null, receiptUrl: null } },
   };
-  // מועמד יחיד → נבחר
-  assert.equal(resolveCustomerAction('meetingReschedule', base).url, 'https://a.example.invalid/r');
-  // שני מועמדים שונים → עצירה בטוחה, בלי ניחוש
-  const amb = { ...base, meeting: { ...base.meeting, rescheduleUrlMaster: 'https://b.example.invalid/r2' } };
+  // שינוי/ביטול: רק כתובת Fillout פונת-לקוח כשרה.
+  // מועמד שאינו Fillout — נפסל; אין אף מועמד כשר → כישלון בטוח.
+  assert.deepEqual(resolveCustomerAction('meetingReschedule', base), { url: null, reason: 'missing' });
+  // מועמד Fillout יחיד → נבחר (גם כשהשני אינו Fillout)
+  const f1 = { ...base, meeting: { ...base.meeting, rescheduleUrlMaster: 'https://mrjapan.fillout.com/t/FAKEr1' } };
+  assert.equal(resolveCustomerAction('meetingReschedule', f1).url, 'https://mrjapan.fillout.com/t/FAKEr1');
+  // שני מועמדי Fillout שונים → עצירה בטוחה, בלי ניחוש
+  const amb = { ...base, meeting: { ...base.meeting,
+    rescheduleUrl: 'https://mrjapan.fillout.com/t/FAKEr1', rescheduleUrlMaster: 'https://mrjapan.fillout.com/t/FAKEr2' } };
   assert.deepEqual(resolveCustomerAction('meetingReschedule', amb), { url: null, reason: 'ambiguous' });
   // שניהם זהים → אין דו-משמעות
-  const same = { ...base, meeting: { ...base.meeting, rescheduleUrlMaster: base.meeting.rescheduleUrl } };
-  assert.equal(resolveCustomerAction('meetingReschedule', same).url, 'https://a.example.invalid/r');
+  const same = { ...base, meeting: { ...base.meeting,
+    rescheduleUrl: 'https://mrjapan.fillout.com/t/FAKEr1', rescheduleUrlMaster: 'https://mrjapan.fillout.com/t/FAKEr1' } };
+  assert.equal(resolveCustomerAction('meetingReschedule', same).url, 'https://mrjapan.fillout.com/t/FAKEr1');
+  // מקרה D: מועמד שהוא webhook של Make — לעולם לא נפתח ולא משמש כנסיגה
+  const mk2 = { ...base, meeting: { ...base.meeting, rescheduleUrl: 'https://hook.eu2.make.com/fake-hook' } };
+  assert.deepEqual(resolveCustomerAction('meetingReschedule', mk2), { url: null, reason: 'missing' });
   // מארח אוטומציה בעמודת קישור → לעולם לא נפתח
   assert.deepEqual(resolveCustomerAction('planChanges', base), { url: null, reason: 'blocked-host' });
   // כתובת קביעת פגישה — מיפוי לא מאומת, תמיד עצירה בטוחה

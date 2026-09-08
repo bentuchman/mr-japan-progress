@@ -171,6 +171,11 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
         .map(actionById)
         .filter((a): a is NonNullable<typeof a> => !!a)
         .map((a) => ({ ...a, status: customerActionStatus(a.dataKey, customer) ?? ('pending' as ActionStatus) }));
+  // הפעולה המשנית של תת-המצב (אם הוגדרה) — אותו מסלול נתונים כמו פעולה רגילה
+  const secondaryConfig = dispSub.secondaryActionId ? actionById(dispSub.secondaryActionId) : undefined;
+  const dispSecondary: ActionRow | undefined = secondaryConfig
+    ? { ...secondaryConfig, status: customerActionStatus(secondaryConfig.dataKey, customer) ?? 'pending' }
+    : undefined;
   const dispNext = dispIndex < stages.length - 1 ? stages[dispIndex + 1] : null;
 
   // ניתוב לפי ספק התוכן של הפעולה. אין כאן if לפי stageId ואין יעדים
@@ -463,6 +468,7 @@ export default function App({ phoneDemo = false, fixedTimeScenario, initialStage
             stage={dispStage}
             sub={dispSub}
             actions={dispActions}
+            secondaryAction={dispSecondary}
             onAction={handleAction}
             onOpenSheet={(kind) => { if (kind !== 'none') setSheet(kind); }}
           />

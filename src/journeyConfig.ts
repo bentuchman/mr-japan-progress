@@ -85,6 +85,9 @@ export interface SubState {
   dateLine?: string;            // שורת מועד שמוצגת בבית (📅)
   detail?: string;
   actions?: string[];           // מזהי פעולות מ-JOURNEY_ACTIONS (0 / 1 / רבות)
+  // פעולה משנית — כפתור שקט מתחת ל-CTA הראשי (בשפת .sp-view הקיימת).
+  // משמש כשהשלב הוא ישות אחת עם פעולה ראשית ומשנית (פגישה שנקבעה).
+  secondaryActionId?: string;
   confirms?: string[];          // אישורי "התקבל ✓" (ירוק — רק כאן)
   summary?: string[];           // סיכום קומפקטי אחרי שליחה (🏨 3 מלונות...)
   viewLabel?: string;           // כפתור משני לצפייה בנכס שנשלח
@@ -183,7 +186,9 @@ export const STAGES: Stage[] = [
         demoLabel: 'נקבעה',
         ownership: 'both',
         dateLine: 'יום ג׳, 12/08 · 19:00',
-        actions: ['meeting', 'consultation-reschedule'],
+        // ישות פגישה אחת: מועד ← כניסה (ראשי) ← שינוי או ביטול (משני)
+        actions: ['meeting'],
+        secondaryActionId: 'consultation-reschedule',
       },
       {
         id: 'upcoming',
@@ -464,13 +469,13 @@ export const JOURNEY_ACTIONS: JourneyAction[] = [
   {
     // מצב ב' — הפגישה קיימת; היעד הוא קישור ה-Zoom של הלקוח (חיצוני)
     id: 'meeting', stageId: 'meeting',
-    icon: '📅', title: 'פרטי הפגישה', cta: 'לצפייה', ctaFull: 'לפרטי הפגישה',
+    icon: '📅', title: 'פרטי הפגישה', cta: 'לכניסה', ctaFull: 'לכניסה לפגישה',
     dataKey: 'meeting',
     openMode: 'external', url: null,
   },
   {
     id: 'consultation-reschedule', stageId: 'meeting',
-    icon: '🕒', title: 'שינוי או ביטול פגישה', cta: 'לשינוי', ctaFull: 'לשינוי או ביטול',
+    icon: '🕒', title: 'שינוי או ביטול', cta: 'לשינוי', ctaFull: 'שינוי או ביטול',
     dataKey: 'meetingReschedule',
     provider: 'fillout', openMode: null, url: DEMO_ACTION_LINKS.consultationReschedule,
     filloutFormId: 'tuqZnYRAxeus',

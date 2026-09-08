@@ -12,6 +12,7 @@ interface Props {
   stage: Stage;
   sub: SubState;
   actions: ActionRow[];         // פעולות השלב עם מצב חי (יכול להיות ריק)
+  secondaryAction?: ActionRow;  // פעולה משנית שקטה מתחת ל-CTA (שינוי או ביטול)
   summaryOverride?: string[];   // סיכום דינמי (למשל ספירת הבחירות שנשלחו בפועל)
   // הרכיב אינו יודע לאן פעולה מובילה — הוא מוסר אותה כמות שהיא
   onAction: (action: ActionRow) => void;
@@ -43,7 +44,7 @@ function ActionRowView({ row, onAction }: { row: ActionRow; onAction: Props['onA
 // תוכן השלב המוצג בכרטיס — היררכיה אחת בכל שלב:
 // שם השלב ← סטטוס ("נדרשת פעולה" / בעלות) ← משפט תומך אם באמת צריך ←
 // הפעולה. פעולה אחת = CTA ראשי; כמה פעולות במקביל = שורות קומפקטיות.
-export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onAction, onOpenSheet }: Props) {
+export function CurrentStagePanel({ stage, sub, actions, secondaryAction, summaryOverride, onAction, onOpenSheet }: Props) {
   const rows = actions;
   const summary = summaryOverride ?? sub.summary;
   const pending = rows.filter((r) => r.status === 'pending');
@@ -88,6 +89,12 @@ export function CurrentStagePanel({ stage, sub, actions, summaryOverride, onActi
           {rows.map((r) => <ActionRowView key={r.id} row={r} onAction={onAction} />)}
         </div>
       ) : null}
+      {/* פעולה משנית — אותה שפה ויזואלית של כפתור הצפייה הקיים */}
+      {secondaryAction && secondaryAction.status === 'pending' && (
+        <button className="sp-view" onClick={() => onAction(secondaryAction)}>
+          {secondaryAction.title} ←
+        </button>
+      )}
       {sub.confirms?.map((c) => (
         <div key={c} className="sp-confirm">✓ {c}</div>
       ))}

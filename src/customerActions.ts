@@ -40,6 +40,14 @@ function blockedAutomationHost(url: string): boolean {
   }
 }
 
+function isFilloutHost(url: string): boolean {
+  try {
+    return /(^|\.)fillout\.com$/i.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 const safe = (url: string | null): ResolvedActionUrl =>
   url === null
     ? { url: null, reason: 'missing' }
@@ -61,12 +69,16 @@ export function resolveCustomerAction(
       // לא ממציאים ולא משתמשים ב-Meeting link כתחליף — מיפוי פתוח.
       return { url: null, reason: 'unverified-mapping' };
     case 'meetingReschedule': {
-      const a = d.meeting.rescheduleUrl;
-      const b = d.meeting.rescheduleUrlMaster;
-      // שני מועמדים ב-Monday. מאוכלס אחד (או ששניהם זהים) → משתמשים בו.
-      // שניהם מאוכלסים בערכים שונים → אין ניחוש: עצירה בטוחה של המיפוי.
-      if (a && b && a !== b) return { url: null, reason: 'ambiguous' };
-      return safe(a ?? b);
+      // חוויית השינוי/ביטול המאומתת ללקוח היא טופס Fillout. לכן רק
+      // מועמד שמתארח על fillout.com כשר; כל דבר אחר — ובמיוחד webhook
+      // של Make, שהוא תשתית אוטומציה — לעולם אינו נפתח ואינו תחליף.
+      const candidates = [d.meeting.rescheduleUrl, d.meeting.rescheduleUrlMaster]
+        .filter((u): u is string => u !== null && isFilloutHost(u));
+      if (candidates.length === 0) return { url: null, reason: 'missing' };
+      if (candidates.length === 2 && candidates[0] !== candidates[1]) {
+        return { url: null, reason: 'ambiguous' };
+      }
+      return { url: candidates[0] };
     }
     case 'planChanges':
       return safe(d.forms.planChangesUrl);
