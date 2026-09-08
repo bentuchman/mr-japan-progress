@@ -15,6 +15,19 @@ import { DEMO_ACTION_LINKS } from './journeyConfig.ts';
 const emptyPayment = () =>
   ({ status: null, paymentUrl: null, paidAt: null, receiptUrl: null });
 
+// עמוד מוטמע מדומה (data:) — מפעיל את מסלול ההטמעה הגנרי הקיים (zite/iframe)
+// בלי אף בקשת רשת. מסומן במפורש כסביבת אימות; אינו עמוד תשלום אמיתי.
+const mockEmbeddedPage = (title: string): string =>
+  'data:text/html;charset=utf-8,' + encodeURIComponent(
+    `<!doctype html><html dir="rtl" lang="he"><body style="margin:0;font-family:-apple-system,sans-serif;display:grid;place-items:center;min-height:96vh;background:#faf9f5;color:#33342e">`
+    + `<div style="text-align:center;padding:24px"><div style="font-size:34px">🧪</div><h2 style="margin:10px 0 6px">${title}</h2>`
+    + `<p style="color:#8a8f9c;margin:0">עמוד מדומה — סביבת אימות בלבד. אין כאן פעולה אמיתית.</p></div></body></html>`,
+  );
+
+// יעד ה-Zoom המדומה: עמוד הבדיקה הציבורי הרשמי של Zoom — גנרי, ללא
+// לקוח וללא פגישה אמיתית; רק מדגים את התנהגות הפתיחה החיצונית הקיימת.
+const MOCK_ZOOM_URL = 'https://zoom.us/test';
+
 interface FixtureOverrides {
   plan?: string;
   internalStatus?: string | null;
@@ -35,13 +48,15 @@ function fixture(o: FixtureOverrides): CustomerJourneyData {
     meeting: {
       zoomMeetingId: null,
       scheduledAt: o.scheduledAt ?? null,
-      meetingUrl: null,   // Zoom אינו ניתן לאימות מקומי — לחיצה מציגה את מסך "לא זמין" הקיים
+      meetingUrl: MOCK_ZOOM_URL,                                 // פתיחה חיצונית קיימת
       rescheduleUrl: DEMO_ACTION_LINKS.consultationReschedule,   // כתובות הדמו הנקיות —
       rescheduleUrlMaster: null,                                 // אינן ספציפיות ללקוח
     },
     forms: {
       hotelSelectionUrl: DEMO_ACTION_LINKS.hotelSelection,
-      planChangesUrl: null,
+      // טופס השינויים האמיתי טרם אומת (בפרודקשן העמודה מחזיקה webhook,
+      // שנחסם); לאימות המסלול המוטמע משמש טופס Fillout נקי כ-placeholder
+      planChangesUrl: DEMO_ACTION_LINKS.consultationReschedule,
       feedbackUrl: DEMO_ACTION_LINKS.feedback,
     },
     planApprovalStatus: o.planApprovalStatus ?? null,
@@ -52,7 +67,10 @@ function fixture(o: FixtureOverrides): CustomerJourneyData {
       plan: o.plan ?? 'Advanced',
       paymentStageInternal: o.paymentStageInternal ?? null,
     },
-    payments: { service: emptyPayment(), attractions: emptyPayment() },
+    payments: {
+      service: { ...emptyPayment(), paymentUrl: mockEmbeddedPage('תשלום דמי השירות') },
+      attractions: { ...emptyPayment(), paymentUrl: mockEmbeddedPage('תשלום אטרקציות') },
+    },
   };
 }
 
