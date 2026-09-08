@@ -4,9 +4,14 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const src = readFileSync('prototype-single.html', 'utf8');
-const head = src.slice(src.indexOf('<head>') + 6, src.indexOf('</head>'));
+// תגי הסגירה נלקחים מה-*סוף* (lastIndexOf): הבאנדל המוטמע יכול להכיל
+// '</body>' כטקסט בתוך מחרוזת JS (למשל עמוד data: מדומה) — indexOf
+// רגיל היה נתפס עליו וחותך body ריק, וה-Artifact עלה בלי #root.
+const head = src.slice(src.indexOf('<head>') + 6, src.lastIndexOf('</head>'));
 const bodyStart = src.indexOf('<body>') + 6;
-const body = src.slice(bodyStart, src.indexOf('</body>'));
+const bodyEnd = src.lastIndexOf('</body>');
+if (bodyEnd <= bodyStart) throw new Error('build-artifact: <body> חסר או ריק — מבנה prototype-single השתנה');
+const body = src.slice(bodyStart, bodyEnd);
 
 // meta charset/viewport מסופקים ע"י מעטפת ה-Artifact; הכותרת שלנו נשארת
 const inner = head.replace(/\s*<meta[^>]*>/g, '').replace(/\s*<title>[\s\S]*?<\/title>/g, '');

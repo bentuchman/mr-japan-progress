@@ -21,7 +21,7 @@ const mockEmbeddedPage = (title: string): string =>
   'data:text/html;charset=utf-8,' + encodeURIComponent(
     `<!doctype html><html dir="rtl" lang="he"><body style="margin:0;font-family:-apple-system,sans-serif;display:grid;place-items:center;min-height:96vh;background:#faf9f5;color:#33342e">`
     + `<div style="text-align:center;padding:24px"><div style="font-size:34px">🧪</div><h2 style="margin:10px 0 6px">${title}</h2>`
-    + `<p style="color:#8a8f9c;margin:0">עמוד מדומה — סביבת אימות בלבד. אין כאן פעולה אמיתית.</p></div></body></html>`,
+    + `<p style="color:#8a8f9c;margin:0">עמוד מדומה — סביבת אימות בלבד. אין כאן פעולה אמיתית.</p></div><\/body><\/html>`,
   );
 
 // יעד ה-Zoom המדומה: עמוד הבדיקה הציבורי הרשמי של Zoom — גנרי, ללא
