@@ -276,8 +276,14 @@ console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
   assert.equal(internalStatusPhase(withOps(ops('waiting for meeting'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('WAITING FOR MEETING'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('changes window open'))), 'other');
-  // תוויות שנצפו אך מחוץ לתחום התיקון — נשארות other בכוונה
-  assert.equal(internalStatusPhase(withOps(ops('Hotels Reservations'))), 'other');
+  // תוויות אזור המלונות (אימות פרודקשן) — מדויקות ותלויות-רישיות
+  assert.equal(internalStatusPhase(withOps(ops('Hotels catalog'))), 'hotelsCatalog');
+  assert.equal(internalStatusPhase(withOps(ops('Hotels Reservations'))), 'hotelsReservations');
+  assert.equal(internalStatusPhase(withOps(ops('hotels catalog'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('Hotels reservations'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('HOTELS RESERVATIONS'))), 'other');
+  // תוויות שנצפו אך מחוץ לתחום — נשארות other בכוונה (כולל Mid QA)
+  assert.equal(internalStatusPhase(withOps(ops('Mid QA'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Stuck'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Waiting for flight - Final'))), 'other');
   assert.equal(internalStatusPhase(withOps(ops('Final QA'))), 'other');

@@ -129,9 +129,14 @@ export function hotelsReservationPhase(d: CustomerJourneyData | null): HotelsRes
 // אינה מתפרשת בשקט כמצב עסקי מאומת.
 // אזור פגישה↔שינויים (אימות פרודקשן): 'Waiting for meeting' = הלקוח
 // באזור הפגישה; 'Changes window open' = חלון טופס השינויים שאחריה.
+// אזור מלונות (אימות פרודקשן, חבילת Advanced): 'Hotels catalog' =
+// הלקוח בוחר; 'Hotels Reservations' = הבחירה התקבלה והצוות מזמין
+// (checkbox המלונות עדיין false בשלב הזה — הוא אות *השלמה* מאוחר).
 export type InternalStatusPhase =
   | 'waitingForMeeting'
   | 'changesWindowOpen'
+  | 'hotelsCatalog'
+  | 'hotelsReservations'
   | 'abroad'
   | 'archive'
   | 'cancelled'
@@ -143,6 +148,8 @@ export function internalStatusPhase(d: CustomerJourneyData | null): InternalStat
   if (label === null || label === '') return 'unknown';
   if (label === 'Waiting for meeting') return 'waitingForMeeting';
   if (label === 'Changes window open') return 'changesWindowOpen';
+  if (label === 'Hotels catalog') return 'hotelsCatalog';
+  if (label === 'Hotels Reservations') return 'hotelsReservations';
   if (label === 'Archive') return 'archive';
   if (label === 'Cancelled') return 'cancelled';
   if (label === 'Abroad') return 'abroad';

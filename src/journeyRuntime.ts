@@ -22,8 +22,10 @@
 //      ואז תשלום השירות והפגישה.
 //
 // מעברים שאין להם אות מאומת אינם ממומשים בכוונה (ראו הדוח):
-//   1→2 (מוכנות התוכנית), 3→4 (הפגישה התקיימה), 6→7 (הלקוח שלח
-//   בחירת מלונות). המנוע עוצר על העמדה המאוחרת ביותר שיש לה ראיה.
+//   1→2 (מוכנות התוכנית). המנוע עוצר על העמדה המאוחרת ביותר שיש לה
+//   ראיה. הגבולות 3↔4 ו-6↔7 נסגרו עם תוויות Internal Status מאומתות:
+//   Waiting for meeting / Changes window open / Hotels catalog /
+//   Hotels Reservations (האחרונות — Advanced בלבד).
 // ============================================================
 
 import type { CustomerJourneyData } from './monday/customerJourneyData.ts';
@@ -114,9 +116,24 @@ function deriveSelectionsRegion(
     return unknown('תאריך תחילת הטיול חסר — לא ניתן לקבוע את חלון תשלום האטרקציות');
   }
 
+  // ===== גבול 6↔7 — תוויות אזור המלונות ב-Internal Status =====
+  // מגיעים לכאן רק כשהמלונות *לא* הוזמנו (checkbox false/null): checkbox
+  // true הוא אות השלמה במורד הזרם וכבר טופל למעלה — תווית ישנה לעולם
+  // אינה מחזירה לקוח שהוזמנו לו מלונות אל שלב 7.
+  const region = internalStatusPhase(d);
+  if (region === 'hotelsReservations') {
+    // אומת בפרודקשן לחבילת Advanced בלבד; לחבילות בלי שלב הזמנת
+    // מלונות התווית אינה ממופה — עצירה בטוחה, לא המצאת שלב.
+    return pkg === 'advanced'
+      ? resolved(pkg, 'hotels-booking', 'working',
+          'Internal Status = Hotels Reservations — הבחירה התקבלה והצוות מזמין')
+      : unknown(`Internal Status = Hotels Reservations אינה ממופה לחבילת '${pkg}' (אין בה שלב הזמנת מלונות)`);
+  }
+  if (region === 'hotelsCatalog' && pkg === 'advanced') {
+    return resolved(pkg, 'selections', 'open', 'Internal Status = Hotels catalog — הלקוח בוחר מלונות');
+  }
+
   // הצוות סימן במפורש שהמלונות טרם הוזמנו → הלקוח באזור הבחירות.
-  // (מעבר 6→7 — "הלקוח שלח בחירה והצוות מזמין" — אין לו אות מאומת,
-  // ולכן המנוע נשאר ב-selections עד ש-hotelsBooked הופך true.)
   if (hotels === 'incomplete') {
     return resolved(pkg, 'selections', 'open', 'הצוות סימן שהמלונות טרם הוזמנו — הבחירות פתוחות');
   }

@@ -195,13 +195,44 @@ const expectUnknown = (state, label) =>
   expectStage(derive(approved({ ...openWin })), 'selections', 'open', 'מלונות null + אטרקציות פתוחות');
   // checkbox חסר ואין פעולה מאומתת פתוחה → unknown, null אינו הופך ל-false
   expectUnknown(derive(approved({ payments: { attractions: { status: 'Paid' } } })), 'מלונות null + שולם');
-  console.log('runtime: אזור 6–8 ✓');
+
+  // ===== גבול 6↔7 — תוויות אזור המלונות (אימות פרודקשן, Advanced) =====
+  const hotelsCat = (hotelsBooked = false) =>
+    approved({ operations: { internalStatus: 'Hotels catalog', hotelsBooked } });
+  const hotelsRes = (hotelsBooked = false) =>
+    approved({ operations: { internalStatus: 'Hotels Reservations', hotelsBooked } });
+  expectStage(derive(hotelsCat(false)), 'selections', 'open', 'Hotels catalog + לא הוזמן');
+  expectStage(derive(hotelsRes(false)), 'hotels-booking', 'working', 'Hotels Reservations + לא הוזמן');
+  expectStage(derive(hotelsRes(null)), 'hotels-booking', 'working', 'Hotels Reservations + checkbox חסר');
+  // התווית אינה ממופה לחבילות בלי שלב הזמנת מלונות — לעולם לא hotels-booking
+  for (const p of ['standard', 'basic']) {
+    const s = derive(hotelsRes(false), p);
+    assert.notEqual(s.kind === 'resolved' && s.currentStageId, 'hotels-booking', `${p}: לא hotels-booking`);
+    expectUnknown(s, `${p} + Hotels Reservations`);
+  }
+  // checkbox true לבדו אינו מפעיל שלב 7 — הוא אות השלמה במורד הזרם
+  expectStage(derive(approved({
+    operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
+  })), 'attractions-booking', 'working', 'הוזמן → שלב 8, לא שלב 7');
+  // תווית Hotels Reservations ישנה אינה מושכת אחורה לקוח שהתקדם:
+  // המלונות כבר הוזמנו → האות במורד הזרם גובר
+  expectStage(derive(approved({
+    operations: { internalStatus: 'Hotels Reservations', hotelsBooked: true, attractionsReservationsStatus: 'Completed' },
+  })), 'attractions-booking', 'all-ready', 'תווית ישנה מול all-ready');
+  expectStage(derive(approved({
+    operations: { internalStatus: 'Hotels Reservations', hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },
+  })), 'attractions-booking', 'working', 'תווית ישנה מול שלב 8 פעיל');
+  // המיפוי חי רק תחת Approved: בלי אישור מור התווית אינה מקדמת לשלב 7
+  const noApproval = derive(customer({ operations: { internalStatus: 'Hotels Reservations' } }));
+  assert.ok(!(noApproval.kind === 'resolved' && noApproval.currentStageId === 'hotels-booking'),
+    'Hotels Reservations בלי Approved אינו שלב 7');
+  console.log('runtime: אזור 6–8 + גבול 6↔7 ✓');
 }
 
 // ===== 6. דטרמיניזם + תקפות כל תוצאה מול journeyConfig =====
 {
   const cases = [];
-  for (const internalStatus of [null, 'Abroad', 'Archive', 'Cancelled', 'Final QA', 'Waiting for meeting', 'Changes window open'])
+  for (const internalStatus of [null, 'Abroad', 'Archive', 'Cancelled', 'Final QA', 'Waiting for meeting', 'Changes window open', 'Hotels catalog', 'Hotels Reservations'])
     for (const plan of [null, 'Changes form submitted', 'Approved', 'Sent for review'])
       for (const hotels of [null, true, false])
         for (const service of [null, 'Paid', 'Pending'])
