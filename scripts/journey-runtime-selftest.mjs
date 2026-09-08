@@ -291,7 +291,27 @@ const expectUnknown = (state, label) =>
   }), TODAY);
   assert.equal(advRes.kind, 'resolved');
   assert.equal(advRes.currentStageId, 'hotels-booking');
-  console.log('runtime: חבילה מ-Plan ✓');
+  // ===== חבילה לא ידועה — לעולם לא הופכת בשקט ל-Advanced =====
+  for (const plan of [null, 'סטנדרטי', 'advanced', 'Premium']) {
+    // שלב תלוי-חבילה (הזמנת מלונות קיימת רק ב-Advanced) → unknown, לא שלב 7
+    const s = deriveJourneyRuntimeState(customer({
+      operations: { plan, internalStatus: 'Hotels Reservations', hotelsBooked: false },
+      planApprovalStatus: 'Approved',
+    }), TODAY);
+    assert.equal(s.kind, 'unknown', `Plan '${plan}' לא ממופה → לא hotels-booking`);
+    // גם all-ready תלוי-חבילה (סטיית basic/advanced) → unknown
+    const r = deriveJourneyRuntimeState(customer({
+      operations: { plan, hotelsBooked: true, attractionsReservationsStatus: 'Completed' },
+      planApprovalStatus: 'Approved',
+    }), TODAY);
+    assert.equal(r.kind, 'unknown', `Plan '${plan}' לא ממופה → לא all-ready של Advanced`);
+  }
+  // שלבים אוניברסליים (קיימים בכל חבילה) עדיין נפתרים גם בלי חבילה ידועה
+  expectStage(deriveJourneyRuntimeState(customer({ operations: { internalStatus: 'Abroad' } }), TODAY),
+    'in-japan', 'traveling', 'Abroad בלי חבילה ידועה');
+  expectStage(deriveJourneyRuntimeState(customer({ operations: { paymentStageInternal: 'service-sent' } }), TODAY),
+    'service-payment', 'due', 'service-sent בלי חבילה ידועה');
+  console.log('runtime: חבילה מ-Plan + כשל-בטוח לחבילה לא ידועה ✓');
 }
 
 // ===== 5ג. משוב — הוכחת הגשה דרך ה-relation בלוח ה-Feedbacks =====

@@ -62,14 +62,26 @@ const unknown = (reason: string): JourneyRuntimeState => ({ kind: 'unknown', rea
 
 // כל תוצאה "resolved" מאומתת מול journeyConfig: שלב או תת-מצב שאינם
 // קיימים לחבילה הזו לעולם אינם מוחזרים.
+// pkg === null — החבילה אינה ידועה (Plan לא ממופה ואין דריסה): מותר
+// לפתור אך ורק שלבים/תתי-מצב אוניברסליים (קיימים בכל שלוש החבילות).
+// חבילה לא ידועה לעולם אינה הופכת בשקט ל-Advanced.
 function resolved(
-  pkg: PackageId,
+  pkg: PackageId | null,
   stageId: string,
   substateId: string,
   reason: string,
 ): JourneyRuntimeState {
   const stage = STAGES.find((s) => s.id === stageId);
-  if (!stage || !stage.packages.includes(pkg)) {
+  if (!stage) return unknown(`השלב '${stageId}' אינו קיים במסע`);
+  if (pkg === null) {
+    const universalStage = stage.packages.length === 3;
+    const sub = stage.subStates.find((ss) => ss.id === substateId);
+    if (!universalStage || !sub || sub.packages) {
+      return unknown(`השלב '${stageId}/${substateId}' תלוי-חבילה, וחבילת הלקוח אינה ידועה (Plan לא ממופה)`);
+    }
+    return { kind: 'resolved', currentStageId: stageId, currentSubstateId: substateId, reason };
+  }
+  if (!stage.packages.includes(pkg)) {
     return unknown(`השלב '${stageId}' אינו קיים במסע של חבילת '${pkg}' — אין מיפוי מאומת`);
   }
   if (!relevantSubStates(stage, pkg).some((ss) => ss.id === substateId)) {
@@ -85,7 +97,7 @@ function resolved(
 function deriveMeetingStage(
   d: CustomerJourneyData,
   today: string,
-  pkg: PackageId,
+  pkg: PackageId | null,
   reasonPrefix: string,
   regionConfirmed: boolean,
 ): JourneyRuntimeState {
@@ -107,7 +119,7 @@ function deriveMeetingStage(
 function deriveSelectionsRegion(
   d: CustomerJourneyData,
   today: string,
-  pkg: PackageId,
+  pkg: PackageId | null,
 ): JourneyRuntimeState {
   const hotels = hotelsReservationPhase(d);
   const attrRes = attractionsReservationsPhase(d);
@@ -167,7 +179,9 @@ function deriveSelectionsRegion(
     return pkg === 'advanced'
       ? resolved(pkg, 'hotels-booking', 'working',
           'Internal Status = Hotels Reservations — הבחירה התקבלה והצוות מזמין')
-      : unknown(`Internal Status = Hotels Reservations אינה ממופה לחבילת '${pkg}' (אין בה שלב הזמנת מלונות)`);
+      : unknown(pkg === null
+          ? 'Internal Status = Hotels Reservations אך חבילת הלקוח אינה ידועה — שלב הזמנת המלונות תלוי-חבילה'
+          : `Internal Status = Hotels Reservations אינה ממופה לחבילת '${pkg}' (אין בה שלב הזמנת מלונות)`);
   }
   if (region === 'hotelsCatalog' && pkg === 'advanced') {
     return resolved(pkg, 'selections', 'open', 'Internal Status = Hotels catalog — הלקוח בוחר מלונות');
@@ -195,7 +209,7 @@ function deriveSelectionsRegion(
 function deriveEarlyRegion(
   d: CustomerJourneyData,
   today: string,
-  pkg: PackageId,
+  pkg: PackageId | null,
 ): JourneyRuntimeState {
   const pay = paymentStagePhase(d);
 
@@ -229,8 +243,9 @@ function deriveEarlyRegion(
 
 // ===== הכניסה הראשית =====
 // today: 'YYYY-MM-DD' (הזמן של הקורא — המנוע אינו קורא שעון).
-// pkg: דריסה מפורשת של החבילה; בהיעדרה — נגזרת מ-Plan (status8),
-// ואם גם היא לא ידועה — 'advanced' (המסע המלא) כברירת תצוגה.
+// pkg: דריסה מפורשת של החבילה; בהיעדרה — נגזרת מ-Plan (status8).
+// Plan לא ממופה ואין דריסה → החבילה לא ידועה (null): נפתרים רק שלבים
+// אוניברסליים; שלב תלוי-חבילה → unknown. לעולם לא ברירת Advanced.
 // extras: ראיות חיצוניות לאייטם (הגשת משוב) — ראו JourneyRuntimeExtras.
 export function deriveJourneyRuntimeState(
   customer: CustomerJourneyData,
@@ -238,7 +253,7 @@ export function deriveJourneyRuntimeState(
   pkg?: PackageId,
   extras?: JourneyRuntimeExtras,
 ): JourneyRuntimeState {
-  const resolvedPkg: PackageId = pkg ?? packageFromPlan(customer) ?? 'advanced';
+  const resolvedPkg: PackageId | null = pkg ?? packageFromPlan(customer);
 
   // 1. מצב סופני — גובר על הכול, כולל משוב. ביטול ≠ השלמת מסע.
   const lifecycle = internalStatusPhase(customer);
