@@ -22,6 +22,7 @@ const clientColumns = [
   { id: CLIENTS_COLUMNS.feedbackFormLink, type: 'formula', text: '', value: null, display_value: 'https://example.invalid/feedback' },
   { id: CLIENTS_COLUMNS.meetingRescheduleLink, type: 'formula', text: '', value: null, display_value: '' },       // ריק בכוונה
   { id: CLIENTS_COLUMNS.planChangesForm, type: 'link', text: 'טופס', value: '{"url":"https://example.invalid/changes","text":"טופס"}' },
+  { id: CLIENTS_COLUMNS.planApproval, type: 'status', text: 'Changes form submitted', value: '{"index":3}' },
   { id: CLIENTS_COLUMNS.paymentsRelation, type: 'board_relation', text: '', value: null, linked_item_ids: [FAKE_PAYMENT] },
   // meetingRescheduleLinkMaster חסרה לגמרי — בכוונה
 ];
@@ -82,6 +83,7 @@ configureMondayGateway({ endpoint: 'https://gateway.invalid/webhook' });
   assert.equal(d.forms.hotelSelectionUrl, 'https://example.invalid/hotels');
   assert.equal(d.forms.feedbackUrl, 'https://example.invalid/feedback');
   assert.equal(d.forms.planChangesUrl, 'https://example.invalid/changes');
+  assert.equal(d.planApprovalStatus, 'Changes form submitted');            // תווית גולמית נשמרת
   assert.equal(d.payments.service.status, 'Paid');                        // תווית גולמית, בלי פרשנות
   assert.equal(d.payments.service.paymentUrl, 'https://example.invalid/pay-service');
   assert.equal(d.payments.service.receiptUrl, null);
@@ -174,4 +176,32 @@ console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
   assert.deepEqual(rendererForUrl('https://mrjapan.fillout.com/t/AbC123'), { provider: 'fillout', filloutFormId: 'AbC123' });
   assert.deepEqual(rendererForUrl('https://pay.example.invalid/x'), { provider: 'zite' });
   console.log('customerActions selftest: עבר ✓');
+}
+
+// ===== מעבר 4→5→6 — Plan Approval כמקור אמת (אישור מור) =====
+{
+  const { planChangesPhase } = await import('../src/customerActions.ts');
+  const withStatus = (planApprovalStatus) => ({
+    clientMondayItemId: 'syn', paymentsMondayItemId: null,
+    trip: { startDate: null, createdAt: null },
+    meeting: { zoomMeetingId: null, scheduledAt: null, meetingUrl: null, rescheduleUrl: null, rescheduleUrlMaster: null },
+    forms: { hotelSelectionUrl: null, planChangesUrl: null, feedbackUrl: null },
+    planApprovalStatus,
+    payments: { service: { status: null, paymentUrl: null, paidAt: null, receiptUrl: null },
+                attractions: { status: null, paymentUrl: null, paidAt: null, receiptUrl: null } },
+  });
+  // 1. הלקוח שלח ומור מטפלת → שלב 5 פעיל
+  assert.equal(planChangesPhase(withStatus('Changes form submitted')), 'inProgress');
+  // 2. מור אישרה → שלב 5 הסתיים, מותר להמשיך ל-6
+  assert.equal(planChangesPhase(withStatus('Approved')), 'approved');
+  // 3. ערך לא מוכר / ריק / חסר → unknown, בלי ניחוש
+  assert.equal(planChangesPhase(withStatus('Working on it')), 'unknown');
+  assert.equal(planChangesPhase(withStatus(null)), 'unknown');
+  assert.equal(planChangesPhase(null), 'unknown');
+  // 4. לקוחות שונים — כל אחד מהנתונים שלו בלבד
+  const a = withStatus('Changes form submitted'), b = withStatus('Approved');
+  assert.equal(planChangesPhase(a), 'inProgress');
+  assert.equal(planChangesPhase(b), 'approved');
+  assert.equal(planChangesPhase(a), 'inProgress');   // b לא השפיע על a
+  console.log('planChangesPhase selftest: עבר ✓');
 }

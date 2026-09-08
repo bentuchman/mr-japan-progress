@@ -91,6 +91,22 @@ export function resolveCustomerAction(
   }
 }
 
+// ===== שלב 5 — מחזור טופס השינויים (אישור עסקי של מור) =====
+// מקור אמת יחיד: עמודת Plan Approval (color_mkym5k62). שתי תוויות
+// מאושרות בלבד:
+//   'Changes form submitted' → הלקוח שלח ומור מטפלת — שלב 5 פעיל
+//   'Approved'               → הטיפול הסתיים — שלב 5 הושלם, ממשיכים ל-6
+// כל ערך אחר (או ריק) אינו מפורש: 'unknown', בלי ניחוש ובלי קידום.
+// בכוונה לא Internal Status / Close date / Automations / Manual trigger.
+export type PlanChangesPhase = 'inProgress' | 'approved' | 'unknown';
+
+export function planChangesPhase(d: CustomerJourneyData | null): PlanChangesPhase {
+  const label = d?.planApprovalStatus?.trim().toLowerCase() ?? null;
+  if (label === 'changes form submitted') return 'inProgress';
+  if (label === 'approved') return 'approved';
+  return 'unknown';
+}
+
 // ===== סטטוס פעולה מנתוני הלקוח =====
 // הערך המאומת היחיד כרגע הוא "Paid". כל ערך אחר אינו מפורש —
 // הפעולה נשארת פתוחה. null = אין דריסה (המצב הקיים נשמר).

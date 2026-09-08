@@ -30,6 +30,7 @@ export const CLIENTS_COLUMNS = {
   meetingRescheduleLink: 'formula_mkrs2ca0',        // formula
   meetingRescheduleLinkMaster: 'formula_mkxr13vp',  // formula
   planChangesForm: 'link_mkyr785r',        // link
+  planApproval: 'color_mkym5k62',          // status — מקור האמת למעבר 4→5→6 (אישור מור)
   paymentsRelation: 'board_relation_mkx3224n',      // board_relation
 } as const;
 
@@ -72,6 +73,10 @@ export interface CustomerJourneyData {
     planChangesUrl: string | null;
     feedbackUrl: string | null;
   };
+  // Plan Approval — התווית הגולמית מ-Monday, ללא פרשנות בשכבה הזו.
+  // המשמעות העסקית (מור): 'Changes form submitted' = שלב 5 פעיל;
+  // 'Approved' = שלב 5 הסתיים. הפירוש חי ב-customerActions בלבד.
+  planApprovalStatus: string | null;
   payments: {
     service: PaymentInfo;
     attractions: PaymentInfo;
@@ -238,6 +243,7 @@ export async function getCustomerJourneyData(
         planChangesUrl: linkUrl(c.get(CLIENTS_COLUMNS.planChangesForm)),
         feedbackUrl: formulaValue(c.get(CLIENTS_COLUMNS.feedbackFormLink)),
       },
+      planApprovalStatus: statusLabel(c.get(CLIENTS_COLUMNS.planApproval)),
       payments: {
         service: paymentsMondayItemId
           ? {
