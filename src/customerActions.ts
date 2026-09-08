@@ -138,6 +138,24 @@ export function internalStatusPhase(d: CustomerJourneyData | null): InternalStat
   return 'other';
 }
 
+// Attractions Reservations: שלוש התוויות שנצפו ואומתו בלוח —
+// 'Yet to start' / 'In Progress' / 'Completed'. אותו עיקרון בדיוק כמו
+// internalStatusPhase: השוואה מדויקת תלוית-רישיות (קיצוץ שוליים בלבד);
+// תווית אחרת → 'other', חסר → 'unknown'.
+export type AttractionsReservationsPhase =
+  | 'yetToStart' | 'inProgress' | 'completed' | 'other' | 'unknown';
+
+export function attractionsReservationsPhase(
+  d: CustomerJourneyData | null,
+): AttractionsReservationsPhase {
+  const label = d?.operations?.attractionsReservationsStatus?.trim() ?? null;
+  if (label === null || label === '') return 'unknown';
+  if (label === 'Yet to start') return 'yetToStart';
+  if (label === 'In Progress') return 'inProgress';
+  if (label === 'Completed') return 'completed';
+  return 'other';
+}
+
 // ===== חלון תשלום האטרקציות — חוק 90 הימים =====
 // פתוח כשנותרו 90 ימים או פחות עד תחילת הטיול (כולל טיול שכבר התחיל —
 // עמדת המסע עצמה אינה נקבעת כאן). 91+ ימים → סגור. תאריך חסר/שבור →
@@ -169,6 +187,19 @@ export function paymentWindowOpen(
   if (today === null || start === null) return null;
   const daysUntilStart = Math.round((start - today) / DAY_MS);
   return daysUntilStart <= 90;
+}
+
+// האם תאריך (או תאריך-שעה — נלקח רק רכיב התאריך) כבר חלף? השוואת
+// תאריכים-בלבד באותו מנגנון חצות-UTC. "היום" אינו "חלף". חסר/שבור →
+// null — לא ידוע אינו הופך למסקנה.
+export function isoDatePassed(
+  todayIsoDate: string,
+  isoDate: string | null,
+): boolean | null {
+  const today = utcMidnight(todayIsoDate);
+  const date = utcMidnight(isoDate);
+  if (today === null || date === null) return null;
+  return date < today;
 }
 
 // ===== סטטוס פעולה מנתוני הלקוח =====
