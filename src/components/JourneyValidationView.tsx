@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import App from '../App';
 import { IPhoneDemoFrame } from './IPhoneDemoFrame';
 import { deriveJourneyRuntimeState } from '../journeyRuntime';
+import { setCustomerJourney } from '../customerSession';
 import { VALIDATION_STATES } from '../journeyValidationStates';
 
 // ===== אימות חזותי של מנוע המסע (Phase 2) — על גבי ה-UI המאושר =====
@@ -14,10 +15,20 @@ export function JourneyValidationView({ onExit }: { onExit: () => void }) {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const current = VALIDATION_STATES.find((s) => s.id === stateId) ?? VALIDATION_STATES[0];
+  const fixture = useMemo(() => current.build(today), [current, today]);
   const derived = useMemo(
-    () => deriveJourneyRuntimeState(current.build(today), today, undefined, current.extras),
-    [current, today],
+    () => deriveJourneyRuntimeState(fixture, today, undefined, current.extras),
+    [fixture, today, current],
   );
+
+  // ה-fixture נטען כ"לקוח הנוכחי" דרך המסלול הקיים (customerSession) —
+  // כך מסך הפגישה מציג את מועד ה-scheduledAt המדומה דרך אותו UI קיים
+  // בדיוק, והפעולות שואבות את הכתובות מנתוני הלקוח כמו בפרודקשן.
+  // ביציאה מהאימות המצב מנוקה — הדמו הרגיל אינו מושפע.
+  useEffect(() => {
+    setCustomerJourney(fixture);
+    return () => setCustomerJourney(null);
+  }, [fixture]);
   const stageId = derived.kind === 'resolved' ? derived.currentStageId : undefined;
   const substateId = derived.kind === 'resolved' ? derived.currentSubstateId : undefined;
 

@@ -10,6 +10,7 @@
 
 import type { CustomerJourneyData } from './monday/customerJourneyData.ts';
 import type { JourneyRuntimeExtras } from './journeyRuntime.ts';
+import { DEMO_ACTION_LINKS } from './journeyConfig.ts';
 
 const emptyPayment = () =>
   ({ status: null, paymentUrl: null, paidAt: null, receiptUrl: null });
@@ -33,11 +34,15 @@ function fixture(o: FixtureOverrides): CustomerJourneyData {
     meeting: {
       zoomMeetingId: null,
       scheduledAt: o.scheduledAt ?? null,
-      meetingUrl: null,
-      rescheduleUrl: null,
-      rescheduleUrlMaster: null,
+      meetingUrl: null,   // Zoom אינו ניתן לאימות מקומי — לחיצה מציגה את מסך "לא זמין" הקיים
+      rescheduleUrl: DEMO_ACTION_LINKS.consultationReschedule,   // כתובות הדמו הנקיות —
+      rescheduleUrlMaster: null,                                 // אינן ספציפיות ללקוח
     },
-    forms: { hotelSelectionUrl: null, planChangesUrl: null, feedbackUrl: null },
+    forms: {
+      hotelSelectionUrl: DEMO_ACTION_LINKS.hotelSelection,
+      planChangesUrl: null,
+      feedbackUrl: DEMO_ACTION_LINKS.feedback,
+    },
     planApprovalStatus: o.planApprovalStatus ?? null,
     operations: {
       internalStatus: o.internalStatus ?? null,
