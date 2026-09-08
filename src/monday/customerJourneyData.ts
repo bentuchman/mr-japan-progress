@@ -21,7 +21,11 @@ export const PAYMENTS_BOARD_ID = '18241802903';
 export const CLIENTS_COLUMNS = {
   itemId: 'item_id__1',                    // item_id
   startTrip: 'date2',                      // date
+  endTrip: 'date3',                        // date — End Trip
   createdAt: 'date38__1',                  // date
+  internalStatus: 'dup__of_internal_status__1',  // status — מצב תפעולי (Abroad/Archive/…)
+  hotelsBooked: 'dup__of_skeleton__1',     // checkbox — הצוות סימן שהמלונות הוזמנו
+  attractionsReservations: 'status__1',    // status — Attractions Reservations
   zoomMeetingId: 'text2__1',               // text
   zoomMeetingDateTime: 'date_mkkb5x8a',    // date
   meetingLink: 'link_mkkc5hf3',            // link
@@ -59,7 +63,16 @@ export interface CustomerJourneyData {
   paymentsMondayItemId: string | null;   // null = אין קישור ללוח התשלומים
   trip: {
     startDate: string | null;            // Start Trip — לצורך חוק 3 החודשים (שלב הבא)
+    endDate: string | null;              // End Trip — כפי שנשמר ב-Monday (YYYY-MM-DD)
     createdAt: string | null;            // Created at
+  };
+  // אותות תפעוליים גולמיים — תוויות/סימונים כפי שהם ב-Monday, בלי
+  // פרשנות עסקית בשכבה הזו. הפירוש (וההבחנה "לא ידוע" ≠ "לא") חי
+  // ב-customerActions בלבד.
+  operations: {
+    internalStatus: string | null;               // Internal Status — התווית המדויקת
+    hotelsBooked: boolean | null;                // checkbox: true/false מפורשים, null = לא ידוע
+    attractionsReservationsStatus: string | null; // Attractions Reservations — התווית המדויקת
   };
   meeting: {
     zoomMeetingId: string | null;
@@ -137,6 +150,17 @@ function dateValue(cv: RawColumnValue | undefined): string | null {
 // עמודת status: התווית כפי שהיא ("Paid" וכו')
 function statusLabel(cv: RawColumnValue | undefined): string | null {
   return clean(cv?.text);
+}
+
+// עמודת checkbox: value = {"checked": true|false} (גרסאות API ישנות
+// מחזירות "true"/"false" כמחרוזת). אך ורק הערך המובנה — לא הטקסט
+// ("v"/"") שהוא ייצוג תצוגה. חסר/שבור → null, ולעולם לא false:
+// "לא ידוע" אינו "לא מסומן".
+function checkboxValue(cv: RawColumnValue | undefined): boolean | null {
+  const checked = parseValueJson(cv)?.checked;
+  if (checked === true || checked === 'true') return true;
+  if (checked === false || checked === 'false') return false;
+  return null;
 }
 
 // board_relation: מזהי האייטמים המקושרים. שני מסלולים —
@@ -229,7 +253,13 @@ export async function getCustomerJourneyData(
       paymentsMondayItemId,
       trip: {
         startDate: dateValue(c.get(CLIENTS_COLUMNS.startTrip)),
+        endDate: dateValue(c.get(CLIENTS_COLUMNS.endTrip)),
         createdAt: dateValue(c.get(CLIENTS_COLUMNS.createdAt)),
+      },
+      operations: {
+        internalStatus: statusLabel(c.get(CLIENTS_COLUMNS.internalStatus)),
+        hotelsBooked: checkboxValue(c.get(CLIENTS_COLUMNS.hotelsBooked)),
+        attractionsReservationsStatus: statusLabel(c.get(CLIENTS_COLUMNS.attractionsReservations)),
       },
       meeting: {
         zoomMeetingId: textValue(c.get(CLIENTS_COLUMNS.zoomMeetingId)),

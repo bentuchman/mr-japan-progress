@@ -107,6 +107,68 @@ export function planChangesPhase(d: CustomerJourneyData | null): PlanChangesPhas
   return 'unknown';
 }
 
+// ===== אותות תפעוליים — פרשנים טהורים (שלב 1 של המסע בזמן-ריצה) =====
+// מתרגמים אות Monday גולמי אחד למצב עסקי מוגדר. אינם קובעים עמדת מסע —
+// מנוע ה-JourneyRuntimeState העתידי יצרוך אותם. העיקרון האחיד: ערך
+// חסר/לא-מוכר → 'unknown', לעולם לא מסקנה עסקית.
+
+// checkbox המלונות: הושלם רק כשהצוות סימן במפורש. false מפורש ≠ חסר.
+export type HotelsReservationPhase = 'completed' | 'incomplete' | 'unknown';
+
+export function hotelsReservationPhase(d: CustomerJourneyData | null): HotelsReservationPhase {
+  const booked = d?.operations?.hotelsBooked ?? null;
+  if (booked === true) return 'completed';
+  if (booked === false) return 'incomplete';
+  return 'unknown';
+}
+
+// Internal Status: שלוש תוויות מאומתות + 'other' לכל תווית קיימת אחרת
+// (מצב תפעולי מוכר-כקיים אך לא ממופה) + 'unknown' לחסר. השוואה מדויקת
+// (עם נרמול רווחים/רישיות בלבד) — בלי ניחוש תוויות חדשות.
+export type InternalStatusPhase = 'archive' | 'cancelled' | 'abroad' | 'other' | 'unknown';
+
+export function internalStatusPhase(d: CustomerJourneyData | null): InternalStatusPhase {
+  const label = d?.operations?.internalStatus?.trim().toLowerCase() ?? null;
+  if (label === null || label === '') return 'unknown';
+  if (label === 'archive') return 'archive';
+  if (label === 'cancelled') return 'cancelled';
+  if (label === 'abroad') return 'abroad';
+  return 'other';
+}
+
+// ===== חלון תשלום האטרקציות — חוק 90 הימים =====
+// פתוח כשנותרו 90 ימים או פחות עד תחילת הטיול (כולל טיול שכבר התחיל —
+// עמדת המסע עצמה אינה נקבעת כאן). 91+ ימים → סגור. תאריך חסר/שבור →
+// null: "לא ידוע" לעולם אינו הופך ל"סגור".
+//
+// השוואת תאריכים-בלבד בלי סחף אזורי-זמן: שני הצדדים מפורקים למרכיבי
+// שנה-חודש-יום ליטרליים וממופים ל-Date.UTC באותה חצות-UTC. אף צד אינו
+// עובר דרך שעון מקומי או new Date(string), ולכן ההפרש הוא תמיד כפולה
+// שלמה של יממה — בלי DST ובלי תלות באזור הזמן של הדפדפן.
+const DAY_MS = 86_400_000;
+
+function utcMidnight(isoDate: string | null | undefined): number | null {
+  if (typeof isoDate !== 'string') return null;
+  const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  const [, y, mo, day] = m.map(Number);
+  if (mo < 1 || mo > 12 || day < 1 || day > 31) return null;
+  const t = Date.UTC(y, mo - 1, day);
+  // דוחה גלגול תאריכים (למשל 31 בפברואר) — ערך שבור אינו "סגור", הוא לא-ידוע
+  return new Date(t).getUTCDate() === day ? t : null;
+}
+
+export function paymentWindowOpen(
+  todayIsoDate: string,
+  tripStartDate: string | null,
+): boolean | null {
+  const today = utcMidnight(todayIsoDate);
+  const start = utcMidnight(tripStartDate);
+  if (today === null || start === null) return null;
+  const daysUntilStart = Math.round((start - today) / DAY_MS);
+  return daysUntilStart <= 90;
+}
+
 // ===== סטטוס פעולה מנתוני הלקוח =====
 // הערך המאומת היחיד כרגע הוא "Paid". כל ערך אחר אינו מפורש —
 // הפעולה נשארת פתוחה. null = אין דריסה (המצב הקיים נשמר).

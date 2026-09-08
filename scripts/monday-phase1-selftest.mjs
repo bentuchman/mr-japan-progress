@@ -14,6 +14,10 @@ const sent = [];
 
 const clientColumns = [
   { id: CLIENTS_COLUMNS.startTrip, type: 'date', text: '2099-12-24', value: '{"date":"2099-12-24"}' },
+  { id: CLIENTS_COLUMNS.endTrip, type: 'date', text: '2100-01-07', value: '{"date":"2100-01-07"}' },
+  { id: CLIENTS_COLUMNS.internalStatus, type: 'status', text: 'Abroad', value: '{"index":5}' },
+  { id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: 'v', value: '{"checked":true}' },
+  { id: CLIENTS_COLUMNS.attractionsReservations, type: 'status', text: 'In Progress', value: '{"index":1}' },
   { id: CLIENTS_COLUMNS.createdAt, type: 'date', text: '2099-01-02', value: '{"date":"2099-01-02"}' },
   { id: CLIENTS_COLUMNS.zoomMeetingId, type: 'text', text: 'FAKE-ZOOM-1', value: '"FAKE-ZOOM-1"' },
   { id: CLIENTS_COLUMNS.zoomMeetingDateTime, type: 'date', text: '', value: '{"date":"2099-02-03","time":"19:00:00"}' },
@@ -76,6 +80,10 @@ configureMondayGateway({ endpoint: 'https://gateway.invalid/webhook' });
   assert.equal(d.clientMondayItemId, FAKE_CLIENT);
   assert.equal(d.paymentsMondayItemId, FAKE_PAYMENT);
   assert.equal(d.trip.startDate, '2099-12-24');
+  assert.equal(d.trip.endDate, '2100-01-07');                             // End Trip — תאריך-בלבד כפי שנשמר
+  assert.equal(d.operations.internalStatus, 'Abroad');                    // תווית מדויקת, בלי פרשנות
+  assert.equal(d.operations.hotelsBooked, true);                          // מה-value המובנה, לא מהטקסט
+  assert.equal(d.operations.attractionsReservationsStatus, 'In Progress');
   assert.equal(d.meeting.scheduledAt, '2099-02-03T19:00:00');
   assert.equal(d.meeting.meetingUrl, 'https://example.invalid/meet');     // value.url, לא טקסט התצוגה
   assert.equal(d.meeting.rescheduleUrl, null);                            // display_value ריק → null
@@ -130,6 +138,29 @@ configureMondayGateway({ endpoint: 'https://gateway.invalid/webhook' });
   const r3 = await getCustomerJourneyData(FAKE_CLIENT);
   assert.equal(r3.ok, false);
   assert.equal(r3.error.kind, 'network');
+}
+
+// 7. checkbox המלונות — אך ורק ה-value המובנה; חסר/שבור → null (לא false)
+{
+  const variants = [
+    [{ id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: 'v', value: '{"checked":true}' }, true],
+    [{ id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: '', value: '{"checked":false}' }, false],
+    [{ id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: 'v', value: '{"checked":"true"}' }, true],   // ייצוג API ישן
+    [{ id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: 'v', value: null }, null],                    // value חסר — הטקסט לא קובע
+    [{ id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: '', value: 'not json{{' }, null],             // שבור
+    [{ id: CLIENTS_COLUMNS.hotelsBooked, type: 'checkbox', text: '', value: '{"other":1}' }, null],            // בלי checked
+    [null, null],                                                                                              // עמודה חסרה לגמרי
+  ];
+  for (const [col, expected] of variants) {
+    const cols = col ? [col] : [];
+    globalThis.fetch = async (url, init) => {
+      sent.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ data: { items: [{ id: FAKE_CLIENT, column_values: cols }] } }), { status: 200 });
+    };
+    const r = await getCustomerJourneyData(FAKE_CLIENT);
+    assert.equal(r.ok, true);
+    assert.equal(r.data.operations.hotelsBooked, expected, `checkbox ${col?.value ?? 'missing'}`);
+  }
 }
 
 console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
@@ -204,4 +235,50 @@ console.log('monday-phase1-selftest: כל הבדיקות עברו ✓');
   assert.equal(planChangesPhase(b), 'approved');
   assert.equal(planChangesPhase(a), 'inProgress');   // b לא השפיע על a
   console.log('planChangesPhase selftest: עבר ✓');
+}
+
+// ===== שלב 1 של המסע — פרשני האותות התפעוליים + חלון 90 הימים =====
+{
+  const { hotelsReservationPhase, internalStatusPhase, paymentWindowOpen } =
+    await import('../src/customerActions.ts');
+  const withOps = (operations) => ({
+    clientMondayItemId: 'syn', paymentsMondayItemId: null,
+    trip: { startDate: null, endDate: null, createdAt: null },
+    meeting: { zoomMeetingId: null, scheduledAt: null, meetingUrl: null, rescheduleUrl: null, rescheduleUrlMaster: null },
+    forms: { hotelSelectionUrl: null, planChangesUrl: null, feedbackUrl: null },
+    planApprovalStatus: null, operations,
+    payments: { service: { status: null, paymentUrl: null, paidAt: null, receiptUrl: null },
+                attractions: { status: null, paymentUrl: null, paidAt: null, receiptUrl: null } },
+  });
+  const ops = (internalStatus = null, hotelsBooked = null, attractionsReservationsStatus = null) =>
+    ({ internalStatus, hotelsBooked, attractionsReservationsStatus });
+
+  // מלונות: רק true/false מפורשים מתפרשים; null נשאר "לא ידוע"
+  assert.equal(hotelsReservationPhase(withOps(ops(null, true))), 'completed');
+  assert.equal(hotelsReservationPhase(withOps(ops(null, false))), 'incomplete');
+  assert.equal(hotelsReservationPhase(withOps(ops(null, null))), 'unknown');
+  assert.equal(hotelsReservationPhase(null), 'unknown');
+
+  // Internal Status: שלוש תוויות ממופות; תווית קיימת אחרת → other; חסר → unknown
+  assert.equal(internalStatusPhase(withOps(ops('Archive'))), 'archive');
+  assert.equal(internalStatusPhase(withOps(ops('Cancelled'))), 'cancelled');
+  assert.equal(internalStatusPhase(withOps(ops('Abroad'))), 'abroad');
+  assert.equal(internalStatusPhase(withOps(ops(' abroad '))), 'abroad');            // רווחים/רישיות בלבד
+  assert.equal(internalStatusPhase(withOps(ops('Waiting for flight - Final'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops('Final QA'))), 'other');
+  assert.equal(internalStatusPhase(withOps(ops(null))), 'unknown');
+  assert.equal(internalStatusPhase(null), 'unknown');
+
+  // חלון 90 הימים: תאריכים-בלבד, דטרמיניסטי, גבול בדיוק ב-90
+  const TODAY = '2099-01-01';
+  assert.equal(paymentWindowOpen(TODAY, '2099-04-02'), false);  // 91 ימים → סגור
+  assert.equal(paymentWindowOpen(TODAY, '2099-04-01'), true);   // 90 ימים בדיוק → פתוח
+  assert.equal(paymentWindowOpen(TODAY, '2099-03-31'), true);   // 89 ימים → פתוח
+  assert.equal(paymentWindowOpen(TODAY, TODAY), true);          // הטיול מתחיל היום → פתוח
+  assert.equal(paymentWindowOpen(TODAY, '2098-12-20'), true);   // הטיול כבר התחיל → החלון נשאר פתוח
+  assert.equal(paymentWindowOpen(TODAY, null), null);           // תאריך חסר → לא ידוע, לא "סגור"
+  assert.equal(paymentWindowOpen(TODAY, 'לא תאריך'), null);     // שבור → לא ידוע
+  assert.equal(paymentWindowOpen(TODAY, '2099-02-31'), null);   // תאריך בלתי-אפשרי → לא ידוע
+  assert.equal(paymentWindowOpen('שבור', '2099-04-01'), null);  // "היום" שבור → לא ידוע
+  console.log('operational interpreters selftest: עבר ✓');
 }
