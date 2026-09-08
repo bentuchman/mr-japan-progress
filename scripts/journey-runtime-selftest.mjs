@@ -185,10 +185,46 @@ const expectUnknown = (state, label) =>
   expectStage(derive(approved({
     operations: { hotelsBooked: true, attractionsReservationsStatus: 'Completed', paymentStageInternal: 'advance-paid' },
   })), 'attractions-booking', 'all-ready', 'CASE J: advance-paid + Completed');
-  // advance-sent → תשלום האטרקציות נדרש מהלקוח (עדות ישירה, בלי חישוב חלון)
+  // ===== advance-sent — מקרה A מול מקרה B (החלטת מוצר: בלי רגרסיה) =====
+  // מקרה A: הבחירות עדיין פתוחות → selections/open (6/10)
+  expectStage(derive(approved({
+    operations: { internalStatus: 'Hotels catalog', hotelsBooked: false, paymentStageInternal: 'advance-sent' },
+  })), 'selections', 'open', 'A: advance-sent בזמן הבחירות');
+  // מקרה B: ראיה מאומתת שהמלונות התקדמו → שלב 7 נשאר, לעולם לא selections
+  const caseB = [
+    { hotelsBooked: true, paymentStageInternal: 'advance-sent' },                                     // checkbox
+    { internalStatus: 'Hotels Reservations', hotelsBooked: false, paymentStageInternal: 'advance-sent' }, // תווית
+    { internalStatus: 'Hotels Reservations', hotelsBooked: null, paymentStageInternal: 'advance-sent' },
+  ];
+  for (const ops of caseB) {
+    const s = derive(approved({ operations: ops }));
+    expectStage(s, 'hotels-booking', 'working-payment-due', `B: ${JSON.stringify(ops.internalStatus ?? 'checkbox')}`);
+    assert.notEqual(s.currentStageId, 'selections', 'B לעולם לא selections');
+  }
+  // תת-המצב של מקרה B מציג את פעולת התשלום הקיימת — ולא את בחירת המלונות
+  {
+    const hb = STAGES.find((st) => st.id === 'hotels-booking');
+    const sub = hb.subStates.find((ss) => ss.id === 'working-payment-due');
+    assert.deepEqual(sub.actions, ['attractions'], 'B: פעולת האטרקציות הקיימת בלבד');
+    assert.ok(!sub.actions.includes('hotels'), 'B: בחירת המלונות אינה נפתחת מחדש');
+  }
+  // חבילות בלי שלב 7: אין רגרסיה אפשרית — הבחירות נשארות השלב הנוכחי
   expectStage(derive(approved({
     operations: { hotelsBooked: true, paymentStageInternal: 'advance-sent' },
-  })), 'selections', 'open', 'advance-sent → תשלום נדרש');
+  }), 'standard'), 'selections', 'open', 'standard: advance-sent אחרי מלונות');
+  // הרצף המלא ללקוח Advanced: 6 → 7 → 7 (בלי נסיגה) → 8
+  {
+    const seq = [
+      derive(approved({ operations: { internalStatus: 'Hotels catalog', hotelsBooked: false } , }, )),
+      derive(approved({ operations: { internalStatus: 'Hotels Reservations', hotelsBooked: false } })),
+      derive(approved({ operations: { hotelsBooked: true, paymentStageInternal: 'advance-sent' } })),
+      derive(approved({ operations: { hotelsBooked: true, paymentStageInternal: 'advance-paid', attractionsReservationsStatus: 'Yet to start' } })),
+    ];
+    const order = ['plan-building', 'service-payment', 'meeting', 'changes-form', 'changes-processing',
+      'selections', 'hotels-booking', 'attractions-booking', 'in-japan', 'feedback'];
+    const idx = seq.map((s) => order.indexOf(s.currentStageId));
+    assert.deepEqual(idx, [5, 6, 6, 7], 'רצף 6→7→7→8 בלי רגרסיה');
+  }
   // In Progress *לבדו* (בלי advance-paid) נדחה בפרודקשן כאות הפעלה → עצירה בטוחה
   expectUnknown(derive(approved({
     operations: { hotelsBooked: true, attractionsReservationsStatus: 'In Progress' },

@@ -120,7 +120,13 @@ export const VALIDATION_STATES: ValidationState[] = [
       planApprovalStatus: 'Approved', internalStatus: 'Hotels Reservations',
       hotelsBooked: false, startDate: addDays(today, 55),
     }) },
-  { id: 'attractions-due', label: '7 · advance-sent — תשלום אטרקציות נדרש', group: G3,
+  { id: 'attractions-due-during', label: '7א · advance-sent בזמן הבחירות (6/10, שתי פעולות)', group: G3,
+    build: (today) => fixture({
+      planApprovalStatus: 'Approved', internalStatus: 'Hotels catalog',
+      hotelsBooked: false,
+      paymentStageInternal: 'advance-sent', startDate: addDays(today, 50),
+    }) },
+  { id: 'attractions-due-after', label: '7ב · advance-sent אחרי שהמלונות התקדמו (נשאר 7/10)', group: G3,
     build: (today) => fixture({
       planApprovalStatus: 'Approved', hotelsBooked: true,
       paymentStageInternal: 'advance-sent', startDate: addDays(today, 50),

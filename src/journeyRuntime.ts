@@ -124,7 +124,20 @@ function deriveSelectionsRegion(
   const hotels = hotelsReservationPhase(d);
   const attrRes = attractionsReservationsPhase(d);
   const pay = paymentStagePhase(d);
+  const region = internalStatusPhase(d);
   const windowOpen = paymentWindowOpen(today, d.trip.startDate);
+
+  // ===== החלטת מוצר — בלי רגרסיה של ה-Progress (מקרה B) =====
+  // advance-sent כשיש ראיה מאומתת שהלקוח כבר עבר את שלב הבחירות
+  // (checkbox המלונות מסומן, או Internal Status = Hotels Reservations):
+  // שלב 7 נשאר הנוכחי, ופעולת התשלום הקיימת מוצגת בו — לא חוזרים ל-6.
+  // הראיה נגזרת אך ורק מנתוני Monday הנוכחיים, בלי זיכרון בצד הלקוח.
+  // תקף ל-Advanced בלבד: לחבילות בלי שלב הזמנת מלונות אין רגרסיה אפשרית.
+  const hotelsProgressed = hotels === 'completed' || region === 'hotelsReservations';
+  if (pay === 'advanceSent' && pkg === 'advanced' && hotelsProgressed) {
+    return resolved(pkg, 'hotels-booking', 'working-payment-due',
+      'advance-sent אחרי שהמלונות התקדמו (checkbox/Hotels Reservations) — שלב 7 נשאר, התשלום מוצג בו');
+  }
 
   if (hotels === 'completed') {
     // ההזמנות הושלמו — "הכול מוכן לטיול"
@@ -150,8 +163,8 @@ function deriveSelectionsRegion(
       return unknown('advance-paid אך מצב עבודת ההזמנות אינו זמין/מוכר — אין שלב מאומת');
     }
 
-    // advance-sent: Monday עצמו מסמן שבקשת תשלום האטרקציות פעילה —
-    // עדות עסקית ישירה, חזקה מחישוב חלון בפרונט.
+    // advance-sent (חבילה בלי שלב הזמנת מלונות): הבחירות נשארות השלב
+    // הנוכחי — אין שלב 7 ואין רגרסיה אפשרית.
     if (pay === 'advanceSent') {
       return resolved(pkg, 'selections', 'open', 'advance-sent — תשלום האטרקציות נדרש מהלקוח');
     }
@@ -177,7 +190,6 @@ function deriveSelectionsRegion(
   // מגיעים לכאן רק כשהמלונות לא הוזמנו (checkbox false/null): checkbox
   // true הוא אות השלמה במורד הזרם — תווית ישנה לעולם אינה מחזירה לקוח
   // שהוזמנו לו מלונות אל שלב 7.
-  const region = internalStatusPhase(d);
   if (region === 'hotelsReservations') {
     return pkg === 'advanced'
       ? resolved(pkg, 'hotels-booking', 'working',
